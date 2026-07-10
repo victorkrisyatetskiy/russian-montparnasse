@@ -20,6 +20,7 @@ public class RssFeedReader {
         try {
             URL url = new URL(rssUrl);
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document document = builder.parse(url.openStream());
             document.getDocumentElement().normalize();
@@ -32,6 +33,12 @@ public class RssFeedReader {
                     String title = getElementValue(itemElement, "title");
                     String link = getElementValue(itemElement, "link");
                     String pubDate = getElementValue(itemElement, "pubDate");
+
+
+                    if (pubDate == null || pubDate.isEmpty()) {
+                        pubDate = getElementValueByLocalName(itemElement, "date");
+                    }
+
                     RssItem rssItem = new RssItem(title, link, pubDate);
                     rssItems.add(rssItem);
                 }
@@ -48,6 +55,20 @@ public class RssFeedReader {
             Node node = nodes.item(0);
             if (node != null) {
                 return node.getTextContent();
+            }
+        }
+        return null;
+    }
+
+    private String getElementValueByLocalName(Element parent, String localName) {
+        NodeList childNodes = parent.getChildNodes();
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node node = childNodes.item(i);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element) node;
+                if (localName.equals(element.getLocalName())) {
+                    return element.getTextContent();
+                }
             }
         }
         return null;
