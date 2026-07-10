@@ -1,5 +1,6 @@
 package com.russianmontparnasse.rss;
 
+import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -11,6 +12,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+@Service
 public class RssFeedReader {
 
     public List<RssItem> read(String rssUrl) {
