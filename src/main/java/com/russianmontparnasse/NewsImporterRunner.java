@@ -1,5 +1,7 @@
 package com.russianmontparnasse;
 
+import com.russianmontparnasse.news.NewsArticle;
+import com.russianmontparnasse.news.NewsMapper;
 import com.russianmontparnasse.news.NewsProcessor;
 import com.russianmontparnasse.rss.RssFeedReader;
 import com.russianmontparnasse.rss.RssItem;
@@ -18,24 +20,28 @@ public class NewsImporterRunner implements CommandLineRunner {
 
     private final RssFeedReader rssFeedReader;
     private final NewsProcessor newsProcessor;
+    private final NewsMapper newsMapper;
 
     @Value("${rss.feed.url}")
     private String rssUrl;
 
-    public NewsImporterRunner(RssFeedReader rssFeedReader, NewsProcessor newsProcessor) {
+    public NewsImporterRunner(RssFeedReader rssFeedReader, NewsProcessor newsProcessor, NewsMapper newsMapper) {
         this.rssFeedReader = rssFeedReader;
         this.newsProcessor = newsProcessor;
+        this.newsMapper = newsMapper;
     }
 
     @Override
     public void run(String... args) {
         logger.info("Starting news import process...");
         try {
-            // Read RSS feed
-            List<RssItem> news = rssFeedReader.read(rssUrl);
+            List<RssItem> rssItems = rssFeedReader.read(rssUrl);
 
-            // Delegate printing of news to NewsProcessor
-            newsProcessor.printNews(news);
+            List<NewsArticle> newsArticles = rssItems.stream()
+                    .map(newsMapper::mapToNewsArticle)
+                    .toList(); // Using toList()
+
+            newsProcessor.printNews(newsArticles);
 
         } catch (Exception e) {
             logger.error("Error occurred while importing news: ", e);
