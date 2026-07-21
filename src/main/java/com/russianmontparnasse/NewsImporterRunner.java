@@ -3,6 +3,7 @@ package com.russianmontparnasse;
 import com.russianmontparnasse.news.NewsArticle;
 import com.russianmontparnasse.news.NewsMapper;
 import com.russianmontparnasse.news.NewsProcessor;
+import com.russianmontparnasse.news.NewsDuplicateFilter;
 import com.russianmontparnasse.rss.RssFeedReader;
 import com.russianmontparnasse.rss.RssItem;
 import org.slf4j.Logger;
@@ -21,14 +22,16 @@ public class NewsImporterRunner implements CommandLineRunner {
     private final RssFeedReader rssFeedReader;
     private final NewsProcessor newsProcessor;
     private final NewsMapper newsMapper;
+    private final NewsDuplicateFilter newsDuplicateFilter;
 
     @Value("${rss.feed.url}")
     private String rssUrl;
 
-    public NewsImporterRunner(RssFeedReader rssFeedReader, NewsProcessor newsProcessor, NewsMapper newsMapper) {
+    public NewsImporterRunner(RssFeedReader rssFeedReader, NewsProcessor newsProcessor, NewsMapper newsMapper, NewsDuplicateFilter newsDuplicateFilter) {
         this.rssFeedReader = rssFeedReader;
         this.newsProcessor = newsProcessor;
         this.newsMapper = newsMapper;
+        this.newsDuplicateFilter = newsDuplicateFilter;
     }
 
     @Override
@@ -41,7 +44,10 @@ public class NewsImporterRunner implements CommandLineRunner {
                     .map(newsMapper::mapToNewsArticle)
                     .toList(); // Using toList()
 
-            newsProcessor.printNews(newsArticles);
+
+            List<NewsArticle> filteredNewsArticles = newsDuplicateFilter.removeDuplicates(newsArticles);
+
+            newsProcessor.printNews(filteredNewsArticles);
 
         } catch (Exception e) {
             logger.error("Error occurred while importing news: ", e);
