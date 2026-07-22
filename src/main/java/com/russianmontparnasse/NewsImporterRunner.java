@@ -4,6 +4,7 @@ import com.russianmontparnasse.news.NewsArticle;
 import com.russianmontparnasse.news.NewsMapper;
 import com.russianmontparnasse.news.NewsProcessor;
 import com.russianmontparnasse.news.NewsDuplicateFilter;
+import com.russianmontparnasse.persistence.NewsPersistenceService; // Corrected Import
 import com.russianmontparnasse.rss.RssFeedReader;
 import com.russianmontparnasse.rss.RssItem;
 import org.slf4j.Logger;
@@ -23,15 +24,23 @@ public class NewsImporterRunner implements CommandLineRunner {
     private final NewsProcessor newsProcessor;
     private final NewsMapper newsMapper;
     private final NewsDuplicateFilter newsDuplicateFilter;
+    private final NewsPersistenceService newsPersistenceService; // New dependency
 
     @Value("${rss.feed.url}")
     private String rssUrl;
 
-    public NewsImporterRunner(RssFeedReader rssFeedReader, NewsProcessor newsProcessor, NewsMapper newsMapper, NewsDuplicateFilter newsDuplicateFilter) {
+    public NewsImporterRunner(
+            RssFeedReader rssFeedReader,
+            NewsProcessor newsProcessor,
+            NewsMapper newsMapper,
+            NewsDuplicateFilter newsDuplicateFilter,
+            NewsPersistenceService newsPersistenceService // Constructor injection
+    ) {
         this.rssFeedReader = rssFeedReader;
         this.newsProcessor = newsProcessor;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
+        this.newsPersistenceService = newsPersistenceService; // Initialize dependency
     }
 
     @Override
@@ -42,10 +51,11 @@ public class NewsImporterRunner implements CommandLineRunner {
 
             List<NewsArticle> newsArticles = rssItems.stream()
                     .map(newsMapper::mapToNewsArticle)
-                    .toList(); // Using toList()
-
+                    .toList();
 
             List<NewsArticle> filteredNewsArticles = newsDuplicateFilter.removeDuplicates(newsArticles);
+
+            newsPersistenceService.saveNews(filteredNewsArticles);
 
             newsProcessor.printNews(filteredNewsArticles);
 
