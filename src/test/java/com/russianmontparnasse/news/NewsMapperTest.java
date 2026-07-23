@@ -35,7 +35,7 @@ class NewsMapperTest {
         // When
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> newsMapper.mapToNewsArticle(null)
+                () -> newsMapper.mapToNewsArticle((RssItem) null)
         );
 
         // Then

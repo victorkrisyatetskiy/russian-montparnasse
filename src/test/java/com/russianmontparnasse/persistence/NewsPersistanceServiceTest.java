@@ -1,8 +1,6 @@
 package com.russianmontparnasse.persistence;
 
 import com.russianmontparnasse.news.NewsArticle;
-import com.russianmontparnasse.persistence.NewsArticleEntity;
-import com.russianmontparnasse.persistence.NewsArticleRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
