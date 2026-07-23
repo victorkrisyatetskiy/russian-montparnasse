@@ -6,7 +6,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class NewsQueryService {
+public class NewsQueryService
+{
 
     private final NewsArticleRepository newsArticleRepository;
     private final NewsMapper newsMapper;
