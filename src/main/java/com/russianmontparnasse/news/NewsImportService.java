@@ -21,8 +21,8 @@ public class NewsImportService {
     private final NewsPersistenceService newsPersistenceService;
     private final NewsProcessor newsProcessor;
 
-    @Value("${rss.feed.url}")
-    private String rssUrl;
+    @Value("${rss.feed.urls}")
+    private List<String> rssUrls;
 
     public NewsImportService(
             RssFeedReader rssFeedReader,
@@ -39,9 +39,9 @@ public class NewsImportService {
 
     public void importNews() {
         try {
-            logger.info("Starting news import job, reading RSS feed from {}", rssUrl);
+            logger.info("Starting news import job, reading {} RSS feeds", rssUrls.size());
 
-            List<RssItem> rssItems = rssFeedReader.read(rssUrl);
+            List<RssItem> rssItems = rssUrls.stream().flatMap(url -> rssFeedReader.read(url).stream()).toList();
             logger.info("Successfully read {} RSS items", rssItems.size());
 
             List<NewsArticle> articles = rssItems.stream()
