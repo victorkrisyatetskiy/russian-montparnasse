@@ -1,10 +1,6 @@
 package com.russianmontparnasse.persistence;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "news_articles")
@@ -15,7 +11,10 @@ public class NewsArticleEntity {
     private Long id;
 
     private String title;
+
+    @Column(unique = true)
     private String link;
+
     private String publishedDate;
 
     public NewsArticleEntity() {

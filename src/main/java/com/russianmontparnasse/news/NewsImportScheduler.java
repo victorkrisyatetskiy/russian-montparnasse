@@ -12,7 +12,8 @@ public class NewsImportScheduler {
         this.newsImportService = newsImportService;
     }
 
-    @Scheduled(fixedDelayString = "${news.import.interval}")
+    @Scheduled(fixedDelayString = "${news.import.interval}",
+                initialDelayString = "${news.import.initial-delay}")
     public void importNews() {
         newsImportService.importNews();
     }
