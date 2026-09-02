@@ -3,6 +3,7 @@ package com.russianmontparnasse.news;
 import com.russianmontparnasse.persistence.NewsPersistenceService;
 import com.russianmontparnasse.rss.RssFeedReader;
 import com.russianmontparnasse.rss.RssItem;
+import com.russianmontparnasse.telegram.TelegramMessageFormatter;
 import com.russianmontparnasse.telegram.TelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import java.util.List;
 @Service
 public class NewsImportService {
     private final TelegramService telegramService;
+    private final TelegramMessageFormatter telegramMessageFormatter;
 
     private static final Logger logger = LoggerFactory.getLogger(NewsImportService.class);
 
@@ -31,13 +33,15 @@ public class NewsImportService {
             NewsMapper newsMapper,
             NewsDuplicateFilter newsDuplicateFilter,
             NewsPersistenceService newsPersistenceService,
-            NewsProcessor newsProcessor, TelegramService telegramService) {
+            NewsProcessor newsProcessor, TelegramService telegramService,
+            TelegramMessageFormatter telegramMessageFormatter) {
         this.rssFeedReader = rssFeedReader;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
         this.newsPersistenceService = newsPersistenceService;
         this.newsProcessor = newsProcessor;
         this.telegramService = telegramService;
+        this.telegramMessageFormatter = telegramMessageFormatter;
     }
 
     public void importNews() {
@@ -59,7 +63,7 @@ public class NewsImportService {
 
             for (NewsArticle article : savedArticles) {
 
-                String message = article.title() + "\n\n" + article.link();
+                String message = telegramMessageFormatter.format(article);
 
                 telegramService.sendMessage(message);
             }
