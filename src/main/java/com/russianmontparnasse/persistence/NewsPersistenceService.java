@@ -3,6 +3,7 @@ package com.russianmontparnasse.persistence;
 import com.russianmontparnasse.news.NewsArticle;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -14,10 +15,12 @@ public class NewsPersistenceService {
         this.newsArticleRepository = newsArticleRepository;
     }
 
-    public void saveNews(List<NewsArticle> articles) {
+    public List<NewsArticle> saveNews(List<NewsArticle> articles) {
         if (articles == null) {
             throw new IllegalArgumentException("Articles list cannot be null");
         }
+
+        List<NewsArticle> savedArticles = new ArrayList<>();
 
         for (NewsArticle article : articles) {
             if (!newsArticleRepository.existsByLink(article.link())) {
@@ -27,7 +30,9 @@ public class NewsPersistenceService {
                         article.publishedDate()
                 );
                 newsArticleRepository.save(entity);
+                savedArticles.add(article);
             }
         }
+        return savedArticles;
     }
 }

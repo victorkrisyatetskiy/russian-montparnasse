@@ -3,6 +3,7 @@ package com.russianmontparnasse.news;
 import com.russianmontparnasse.persistence.NewsPersistenceService;
 import com.russianmontparnasse.rss.RssFeedReader;
 import com.russianmontparnasse.rss.RssItem;
+import com.russianmontparnasse.telegram.TelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +13,7 @@ import java.util.List;
 
 @Service
 public class NewsImportService {
+    private final TelegramService telegramService;
 
     private static final Logger logger = LoggerFactory.getLogger(NewsImportService.class);
 
@@ -29,12 +31,13 @@ public class NewsImportService {
             NewsMapper newsMapper,
             NewsDuplicateFilter newsDuplicateFilter,
             NewsPersistenceService newsPersistenceService,
-            NewsProcessor newsProcessor) {
+            NewsProcessor newsProcessor, TelegramService telegramService) {
         this.rssFeedReader = rssFeedReader;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
         this.newsPersistenceService = newsPersistenceService;
         this.newsProcessor = newsProcessor;
+        this.telegramService = telegramService;
     }
 
     public void importNews() {
@@ -52,8 +55,17 @@ public class NewsImportService {
             List<NewsArticle> uniqueArticles = newsDuplicateFilter.removeDuplicates(articles);
             logger.info("{} unique news articles remain after duplicate filtering", uniqueArticles.size());
 
-            newsPersistenceService.saveNews(uniqueArticles);
-            logger.info("Passed {} news articles to persistence", uniqueArticles.size());
+            List<NewsArticle> savedArticles = newsPersistenceService.saveNews(uniqueArticles);
+
+            if (!savedArticles.isEmpty()) {
+                NewsArticle article = savedArticles.get(0);
+
+                String message = article.title() + "\n\n" + article.link();
+
+                telegramService.sendMessage(message);
+            }
+
+            logger.info("Saved {} news articles to persistence", savedArticles.size());
 
             newsProcessor.printNews(uniqueArticles);
             logger.info("Processed and printed {} news articles", uniqueArticles.size());
