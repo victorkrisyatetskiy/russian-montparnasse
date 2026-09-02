@@ -57,8 +57,7 @@ public class NewsImportService {
 
             List<NewsArticle> savedArticles = newsPersistenceService.saveNews(uniqueArticles);
 
-            if (!savedArticles.isEmpty()) {
-                NewsArticle article = savedArticles.get(0);
+            for (NewsArticle article : savedArticles) {
 
                 String message = article.title() + "\n\n" + article.link();
 
@@ -66,6 +65,7 @@ public class NewsImportService {
             }
 
             logger.info("Saved {} news articles to persistence", savedArticles.size());
+            logger.info("Published {} new articles to Telegram", savedArticles.size());
 
             newsProcessor.printNews(uniqueArticles);
             logger.info("Processed and printed {} news articles", uniqueArticles.size());
