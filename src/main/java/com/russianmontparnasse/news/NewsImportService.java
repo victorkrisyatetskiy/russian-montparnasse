@@ -25,6 +25,9 @@ public class NewsImportService {
     private final NewsPersistenceService newsPersistenceService;
     private final NewsProcessor newsProcessor;
 
+    private final ArticleContentFetcher articleContentFetcher;
+    private final ArticleTextExtractor articleTextExtractor;
+
     @Value("${rss.feed.urls}")
     private List<String> rssUrls;
 
@@ -34,7 +37,7 @@ public class NewsImportService {
             NewsDuplicateFilter newsDuplicateFilter,
             NewsPersistenceService newsPersistenceService,
             NewsProcessor newsProcessor, TelegramService telegramService,
-            TelegramMessageFormatter telegramMessageFormatter) {
+            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher, ArticleTextExtractor articleTextExtractor) {
         this.rssFeedReader = rssFeedReader;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
@@ -42,6 +45,8 @@ public class NewsImportService {
         this.newsProcessor = newsProcessor;
         this.telegramService = telegramService;
         this.telegramMessageFormatter = telegramMessageFormatter;
+        this.articleContentFetcher = articleContentFetcher;
+        this.articleTextExtractor = articleTextExtractor;
     }
 
     public void importNews() {
@@ -60,6 +65,13 @@ public class NewsImportService {
             logger.info("{} unique news articles remain after duplicate filtering", uniqueArticles.size());
 
             List<NewsArticle> savedArticles = newsPersistenceService.saveNews(uniqueArticles);
+
+            for (NewsArticle article : savedArticles){
+                String html = articleContentFetcher.fetch(article.link());
+                String articleText = articleTextExtractor.extract(html);
+
+                logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
+            }
 
             for (NewsArticle article : savedArticles) {
 
