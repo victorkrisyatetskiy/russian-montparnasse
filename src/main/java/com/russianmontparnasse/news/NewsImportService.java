@@ -28,6 +28,8 @@ public class NewsImportService {
     private final ArticleContentFetcher articleContentFetcher;
     private final ArticleTextExtractor articleTextExtractor;
 
+    private final NewsRelevanceService newsRelevanceService;
+
     @Value("${rss.feed.urls}")
     private List<String> rssUrls;
 
@@ -37,7 +39,7 @@ public class NewsImportService {
             NewsDuplicateFilter newsDuplicateFilter,
             NewsPersistenceService newsPersistenceService,
             NewsProcessor newsProcessor, TelegramService telegramService,
-            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher, ArticleTextExtractor articleTextExtractor) {
+            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher, ArticleTextExtractor articleTextExtractor, NewsRelevanceService newsRelevanceService) {
         this.rssFeedReader = rssFeedReader;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
@@ -47,6 +49,7 @@ public class NewsImportService {
         this.telegramMessageFormatter = telegramMessageFormatter;
         this.articleContentFetcher = articleContentFetcher;
         this.articleTextExtractor = articleTextExtractor;
+        this.newsRelevanceService = newsRelevanceService;
     }
 
     public void importNews() {
@@ -71,14 +74,20 @@ public class NewsImportService {
                 String articleText = articleTextExtractor.extract(html);
 
                 logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
+
+                boolean relevant = newsRelevanceService.isRelevant(articleText);
+
+                logger.info("Article relevance: {} - {}", relevant, article.title());
+
+                if (relevant){
+                    String message = telegramMessageFormatter.format(article);
+                    telegramService.sendMessage(message);
+                }
+
+                logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
             }
 
-            for (NewsArticle article : savedArticles) {
 
-                String message = telegramMessageFormatter.format(article);
-
-                telegramService.sendMessage(message);
-            }
 
             logger.info("Saved {} news articles to persistence", savedArticles.size());
             logger.info("Published {} new articles to Telegram", savedArticles.size());

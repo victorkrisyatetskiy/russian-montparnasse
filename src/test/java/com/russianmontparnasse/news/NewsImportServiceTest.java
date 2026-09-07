@@ -23,6 +23,7 @@ public class NewsImportServiceTest {
     private final TelegramMessageFormatter telegramMessageFormatter = mock(TelegramMessageFormatter.class);
     private final ArticleContentFetcher articleContentFetcher = mock(ArticleContentFetcher.class);
     private final ArticleTextExtractor articleTextExtractor = mock(ArticleTextExtractor.class);
+    private final NewsRelevanceService newsRelevanceService = mock(NewsRelevanceService.class);
 
 
     @Test
@@ -36,7 +37,8 @@ public class NewsImportServiceTest {
                 telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
-                articleTextExtractor
+                articleTextExtractor,
+                newsRelevanceService
         );
 
         ReflectionTestUtils.setField(service,"rssUrls", List.of("https://example.com/rss"));
@@ -64,6 +66,8 @@ public class NewsImportServiceTest {
                 "<html><body>Article content</body></html>"
         )).thenReturn("Article content");
 
+        when(newsRelevanceService.isRelevant("Article content")).thenReturn(true);
+
         when(telegramMessageFormatter.format(article))
                 .thenReturn("Telegram message");
 
@@ -75,6 +79,55 @@ public class NewsImportServiceTest {
         verify(articleTextExtractor)
                 .extract("<html><body>Article content</body></html>");
 
+        verify(newsRelevanceService).isRelevant("Article content");
+
+        verify(telegramMessageFormatter).format(article);
+
+        verify(telegramService).sendMessage("Telegram message");
+
+    }
+
+    @Test
+    void shouldNotPublishIrrelevantArticleToTelegram(){
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService
+        );
+
+        ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.rss"));
+
+        RssItem rssItem = mock(RssItem.class);
+
+        NewsArticle article = new NewsArticle("Test article", "https://example.rss", "2026-09-04");
+
+        when(rssFeedReader.read("https://example.rss")).thenReturn(List.of(rssItem));
+
+        when(newsMapper.mapToNewsArticle(rssItem)).thenReturn(article);
+
+        when(newsDuplicateFilter.removeDuplicates(List.of(article))).thenReturn(List.of(article));
+
+        when(newsPersistenceService.saveNews(List.of(article))).thenReturn(List.of(article));
+
+        when(articleContentFetcher.fetch(article.link())).thenReturn("<html><body>Article content</body></html>");
+
+        when(articleTextExtractor.extract("<html><body>Article content</body></html>")).thenReturn("Article content");
+
+        when(newsRelevanceService.isRelevant("Article content")).thenReturn(false);
+
+        service.importNews();
+
+        verify(newsRelevanceService).isRelevant("Article content");
+
+        verifyNoInteractions(telegramMessageFormatter);
+        verifyNoInteractions(telegramService);
     }
 
 }
