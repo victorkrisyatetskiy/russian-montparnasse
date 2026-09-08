@@ -66,8 +66,11 @@ public class NewsImportServiceTest {
                 "<html><body>Article content</body></html>"
         )).thenReturn("Article content");
 
-        when(newsRelevanceService.isRelevant("Article content")).thenReturn(true);
-
+        when(newsRelevanceService.evaluate("Article content")).thenReturn(new RelevanceResult(
+                true,
+                NewsCategory.OTHER,
+                "Test reason"
+        ));
         when(telegramMessageFormatter.format(article))
                 .thenReturn("Telegram message");
 
@@ -79,7 +82,7 @@ public class NewsImportServiceTest {
         verify(articleTextExtractor)
                 .extract("<html><body>Article content</body></html>");
 
-        verify(newsRelevanceService).isRelevant("Article content");
+        verify(newsRelevanceService).evaluate("Article content");
 
         verify(telegramMessageFormatter).format(article);
 
@@ -120,11 +123,14 @@ public class NewsImportServiceTest {
 
         when(articleTextExtractor.extract("<html><body>Article content</body></html>")).thenReturn("Article content");
 
-        when(newsRelevanceService.isRelevant("Article content")).thenReturn(false);
+        when(newsRelevanceService.evaluate("Article content")).thenReturn(new RelevanceResult(
+                false,
+                null,
+                "Not relevant"));
 
         service.importNews();
 
-        verify(newsRelevanceService).isRelevant("Article content");
+        verify(newsRelevanceService).evaluate("Article content");
 
         verifyNoInteractions(telegramMessageFormatter);
         verifyNoInteractions(telegramService);

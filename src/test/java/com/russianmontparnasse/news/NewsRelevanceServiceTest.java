@@ -11,8 +11,8 @@ public class NewsRelevanceServiceTest {
     void shouldConsiderArticleRelevant(){
         String articleText = "Some article content";
 
-        boolean result = relevanceService.isRelevant(articleText);
+        RelevanceResult result = relevanceService.evaluate(articleText);
 
-        assertTrue(result);
+        assertTrue(result.relevant());
     }
 }

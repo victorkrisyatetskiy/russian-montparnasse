@@ -75,11 +75,15 @@ public class NewsImportService {
 
                 logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
 
-                boolean relevant = newsRelevanceService.isRelevant(articleText);
+                RelevanceResult relevanceResult = newsRelevanceService.evaluate(articleText);
 
-                logger.info("Article relevance: {} - {}", relevant, article.title());
+                logger.info("Article relevance: {} - {}, category: {}, reason: {} - {}",
+                        relevanceResult.relevant(),
+                        relevanceResult.category(),
+                        relevanceResult.reason(),
+                        article.title());
 
-                if (relevant){
+                if (relevanceResult.relevant()){
                     String message = telegramMessageFormatter.format(article);
                     telegramService.sendMessage(message);
                 }

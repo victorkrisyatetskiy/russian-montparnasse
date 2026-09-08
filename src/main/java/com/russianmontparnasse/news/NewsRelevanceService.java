@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class NewsRelevanceService {
-    public boolean isRelevant(String articleText){
-        return true;
+    public RelevanceResult evaluate(String articleText){
+        return new RelevanceResult(true, NewsCategory.OTHER, "Temporary relevance result");
     }
 }
