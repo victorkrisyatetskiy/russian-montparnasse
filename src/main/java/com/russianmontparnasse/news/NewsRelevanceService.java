@@ -4,6 +4,7 @@ import com.russianmontparnasse.openai.OpenAiClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,7 @@ import java.util.Map;
 public class NewsRelevanceService {
     private final OpenAiClient openAiClient;
     private final Resource relevancePrompt;
+    private final ObjectMapper objectMapper;
 
     private Map<String, Object> relevanceSchema(){
         return Map.of(
@@ -50,16 +52,17 @@ public class NewsRelevanceService {
     }
 
     public NewsRelevanceService(@Value("classpath:prompts/news-relevance.txt")
-                                Resource relevancePrompt, OpenAiClient openAiClient){
+                                Resource relevancePrompt, OpenAiClient openAiClient, ObjectMapper objectMapper){
         this.relevancePrompt = relevancePrompt;
         this.openAiClient = openAiClient;
+        this.objectMapper = objectMapper;
     }
 
     public RelevanceResult evaluate(String articleText){
         String prompt = loadPrompt() + "\n\nARTICLE:\n" + articleText;
         String response = openAiClient.sendStructured(prompt, relevanceSchema());
 
-        return new RelevanceResult(true, NewsCategory.OTHER, response);
+        return objectMapper.readValue(response, RelevanceResult.class);
     }
 
     private String loadPrompt(){
