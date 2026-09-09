@@ -136,4 +136,68 @@ public class NewsImportServiceTest {
         verifyNoInteractions(telegramService);
     }
 
+    @Test
+    void shouldContinueProcessingWhenArticleFails(){
+        NewsImportService service = new NewsImportService(
+        rssFeedReader,
+        newsMapper,
+        newsDuplicateFilter,
+        newsPersistenceService,
+        newsProcessor,
+        telegramService,
+        telegramMessageFormatter,
+        articleContentFetcher,
+        articleTextExtractor,
+        newsRelevanceService
+        );
+        ReflectionTestUtils.setField(
+                service,
+                "rssUrls",
+                List.of("https://example.com/rss")
+        );
+
+        RssItem firstRssItem = mock(RssItem.class);
+        RssItem secondRssItem = mock(RssItem.class);
+
+        NewsArticle firstArticle = new NewsArticle(
+                "First article",
+                "https://example.com/first",
+                "2026-09-09"
+        );
+
+        NewsArticle secondArticle = new NewsArticle(
+                "Second article",
+                "https://example.com/second",
+                "2026-09-09"
+        );
+
+        when(rssFeedReader.read("https://example.com/rss")).thenReturn(List.of(firstRssItem, secondRssItem));
+
+        when(newsMapper.mapToNewsArticle(firstRssItem)).thenReturn(firstArticle);
+        when(newsMapper.mapToNewsArticle(secondRssItem)).thenReturn(secondArticle);
+
+        when(newsDuplicateFilter.removeDuplicates(List.of(firstArticle, secondArticle))).thenReturn(List.of(firstArticle, secondArticle));
+
+        when(newsPersistenceService.saveNews(List.of(firstArticle, secondArticle))).thenReturn(List.of(firstArticle, secondArticle));
+
+        when(articleContentFetcher.fetch(firstArticle.link())).thenThrow(new RuntimeException("Failed to fetch article"));
+
+        when(articleContentFetcher.fetch(secondArticle.link())).thenReturn("<html><body>Second article content</body></html>");
+
+        when(articleTextExtractor.extract("<html><body>Second article content</body></html>")).thenReturn("Second article content");
+
+        when(newsRelevanceService.evaluate("Second article content")).thenReturn(new RelevanceResult(
+                true,
+                NewsCategory.OTHER,
+                "Relevant"
+        ));
+
+        when(telegramMessageFormatter.format(secondArticle)).thenReturn("Second Telegram message");
+
+        service.importNews();
+
+        verify(newsRelevanceService).evaluate("Second article content");
+        verify(telegramService).sendMessage("Second Telegram message");
+    }
+
 }

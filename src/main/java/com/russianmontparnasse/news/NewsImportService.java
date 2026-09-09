@@ -69,32 +69,39 @@ public class NewsImportService {
 
             List<NewsArticle> savedArticles = newsPersistenceService.saveNews(uniqueArticles);
 
+            int publishedCount = 0;
+
             for (NewsArticle article : savedArticles){
-                String html = articleContentFetcher.fetch(article.link());
-                String articleText = articleTextExtractor.extract(html);
+                try {
+                    String html = articleContentFetcher.fetch(article.link());
+                    String articleText = articleTextExtractor.extract(html);
 
-                logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
+                    logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
 
-                RelevanceResult relevanceResult = newsRelevanceService.evaluate(articleText);
+                    RelevanceResult relevanceResult = newsRelevanceService.evaluate(articleText);
 
-                logger.info("Article relevance: {} - {}, category: {}, reason: {} - {}",
-                        relevanceResult.relevant(),
-                        relevanceResult.category(),
-                        relevanceResult.reason(),
-                        article.title());
+                    logger.info("Article relevance: {}, category: {}, reason: {} - {}",
+                            relevanceResult.relevant(),
+                            relevanceResult.category(),
+                            relevanceResult.reason(),
+                            article.title());
 
-                if (relevanceResult.relevant()){
-                    String message = telegramMessageFormatter.format(article);
-                    telegramService.sendMessage(message);
+                    if (relevanceResult.relevant()) {
+                        String message = telegramMessageFormatter.format(article);
+                        telegramService.sendMessage(message);
+                        publishedCount++;
+                    }
+                }catch (Exception e){
+                    logger.error("Failed to process article: {}", article.title(), e);
+
+
                 }
-
-                logger.info("Extracted {} characters from article: {}", articleText.length(), article.title());
             }
 
 
 
             logger.info("Saved {} news articles to persistence", savedArticles.size());
-            logger.info("Published {} new articles to Telegram", savedArticles.size());
+            logger.info("Published {} new articles to Telegram", publishedCount);
 
             newsProcessor.printNews(uniqueArticles);
             logger.info("Processed and printed {} news articles", uniqueArticles.size());
