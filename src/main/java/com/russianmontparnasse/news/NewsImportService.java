@@ -10,7 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class NewsImportService {
@@ -67,11 +69,39 @@ public class NewsImportService {
             List<NewsArticle> uniqueArticles = newsDuplicateFilter.removeDuplicates(articles);
             logger.info("{} unique news articles remain after duplicate filtering", uniqueArticles.size());
 
+            List<NewsArticle> failedArticles = newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED);
+
+            List<NewsArticle> newArticles = newsPersistenceService.findByStatus(NewsProcessingStatus.NEW);
+
             List<NewsArticle> savedArticles = newsPersistenceService.saveNews(uniqueArticles);
+
+            Map<String, NewsArticle> articlesToProcess = new LinkedHashMap<>();
+
+            for (NewsArticle article : failedArticles) {
+                articlesToProcess.put(article.link(), article);
+            }
+
+            for (NewsArticle article : newArticles) {
+                articlesToProcess.put(article.link(), article);
+            }
+
+            for (NewsArticle article : savedArticles) {
+                articlesToProcess.put(article.link(), article);
+            }
+
+
+            logger.info(
+                    "Processing {} articles: {} pending, {} failed, {} newly saved",
+                    articlesToProcess.size(),
+                    newArticles.size(),
+                    failedArticles.size(),
+                    savedArticles.size()
+            );
+
 
             int publishedCount = 0;
 
-            for (NewsArticle article : savedArticles){
+            for (NewsArticle article : articlesToProcess.values()) {
                 try {
                     String html = articleContentFetcher.fetch(article.link());
                     String articleText = articleTextExtractor.extract(html);

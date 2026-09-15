@@ -200,4 +200,143 @@ public class NewsImportServiceTest {
         verify(telegramService).sendMessage("Second Telegram message");
     }
 
+    @Test
+    void shouldProcessPreviouslySavedNewArticle() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService
+        );
+
+        ReflectionTestUtils.setField(
+                service,
+                "rssUrls",
+                List.of("https://example.com/rss")
+        );
+
+        NewsArticle pendingArticle = new NewsArticle(
+                "Pending article",
+                "https://example.com/pending",
+                "2026-09-15"
+        );
+
+        when(rssFeedReader.read("https://example.com/rss"))
+                .thenReturn(List.of());
+
+        when(newsDuplicateFilter.removeDuplicates(List.of()))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.NEW))
+                .thenReturn(List.of(pendingArticle));
+
+        when(newsPersistenceService.saveNews(List.of()))
+                .thenReturn(List.of());
+
+        when(articleContentFetcher.fetch(pendingArticle.link()))
+                .thenReturn("<html>content</html>");
+
+        when(articleTextExtractor.extract("<html>content</html>"))
+                .thenReturn("Article content");
+
+        when(newsRelevanceService.evaluate("Article content"))
+                .thenReturn(
+                        new RelevanceResult(
+                                false,
+                                null,
+                                "Not relevant"
+                        )
+                );
+
+        service.importNews();
+
+        verify(articleContentFetcher).fetch(pendingArticle.link());
+        verify(newsRelevanceService).evaluate("Article content");
+
+        verify(newsPersistenceService).updateStatus(
+                pendingArticle.link(),
+                NewsProcessingStatus.PROCESSED
+        );
+    }
+
+    @Test
+    void shouldRetryPreviouslyFailedArticle() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService
+        );
+
+        ReflectionTestUtils.setField(
+                service,
+                "rssUrls",
+                List.of("https://example.com/rss")
+        );
+
+        NewsArticle failedArticle = new NewsArticle(
+                "Failed article",
+                "https://example.com/failed",
+                "2026-09-15"
+        );
+
+        when(rssFeedReader.read("https://example.com/rss"))
+                .thenReturn(List.of());
+
+        when(newsDuplicateFilter.removeDuplicates(List.of()))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED))
+                .thenReturn(List.of(failedArticle));
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.NEW))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.saveNews(List.of()))
+                .thenReturn(List.of());
+
+        when(articleContentFetcher.fetch(failedArticle.link()))
+                .thenReturn("<html>content</html>");
+
+        when(articleTextExtractor.extract("<html>content</html>"))
+                .thenReturn("Article content");
+
+        when(newsRelevanceService.evaluate("Article content"))
+                .thenReturn(
+                        new RelevanceResult(
+                                false,
+                                null,
+                                "Not relevant"
+                        )
+                );
+
+        service.importNews();
+
+        verify(articleContentFetcher)
+                .fetch(failedArticle.link());
+
+        verify(newsRelevanceService)
+                .evaluate("Article content");
+
+        verify(newsPersistenceService).updateStatus(
+                failedArticle.link(),
+                NewsProcessingStatus.PROCESSED
+        );
+    }
+
 }
