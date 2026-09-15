@@ -91,13 +91,26 @@ public class NewsImportService {
                         telegramService.sendMessage(message);
                         publishedCount++;
                     }
-                }catch (Exception e){
+                    newsPersistenceService.updateStatus(
+                            article.link(),
+                            NewsProcessingStatus.PROCESSED
+                    );
+                } catch (Exception e) {
                     logger.error("Failed to process article: {}", article.title(), e);
-
-
+                    try {
+                        newsPersistenceService.updateStatus(
+                                article.link(),
+                                NewsProcessingStatus.FAILED
+                        );
+                    } catch (Exception statusException) {
+                        logger.error(
+                                "Failed to update status for article: {}",
+                                article.title(),
+                                statusException
+                        );
+                    }
                 }
             }
-
 
 
             logger.info("Saved {} news articles to persistence", savedArticles.size());

@@ -1,5 +1,6 @@
 package com.russianmontparnasse.persistence;
 
+import com.russianmontparnasse.news.NewsProcessingStatus;
 import jakarta.persistence.*;
 
 @Entity
@@ -17,6 +18,9 @@ public class NewsArticleEntity {
 
     private String publishedDate;
 
+    @Enumerated(EnumType.STRING)
+    private NewsProcessingStatus status;
+
     public NewsArticleEntity() {
     }
 
@@ -24,6 +28,15 @@ public class NewsArticleEntity {
         this.title = title;
         this.link = link;
         this.publishedDate = publishedDate;
+        this.status = NewsProcessingStatus.NEW;
+    }
+
+    public NewsProcessingStatus getStatus(){
+        return status;
+    }
+
+    public void setStatus(NewsProcessingStatus status){
+        this.status = status;
     }
 
     public Long getId() {
