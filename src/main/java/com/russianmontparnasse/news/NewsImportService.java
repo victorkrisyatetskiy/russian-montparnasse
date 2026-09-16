@@ -31,6 +31,7 @@ public class NewsImportService {
     private final ArticleTextExtractor articleTextExtractor;
 
     private final NewsRelevanceService newsRelevanceService;
+    private final NewsSummaryService newsSummaryService;
 
     @Value("${rss.feed.urls}")
     private List<String> rssUrls;
@@ -41,7 +42,7 @@ public class NewsImportService {
             NewsDuplicateFilter newsDuplicateFilter,
             NewsPersistenceService newsPersistenceService,
             NewsProcessor newsProcessor, TelegramService telegramService,
-            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher, ArticleTextExtractor articleTextExtractor, NewsRelevanceService newsRelevanceService) {
+            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher, ArticleTextExtractor articleTextExtractor, NewsRelevanceService newsRelevanceService, NewsSummaryService newsSummaryService) {
         this.rssFeedReader = rssFeedReader;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
@@ -52,6 +53,7 @@ public class NewsImportService {
         this.articleContentFetcher = articleContentFetcher;
         this.articleTextExtractor = articleTextExtractor;
         this.newsRelevanceService = newsRelevanceService;
+        this.newsSummaryService = newsSummaryService;
     }
 
     public void importNews() {
@@ -117,7 +119,9 @@ public class NewsImportService {
                             article.title());
 
                     if (relevanceResult.relevant()) {
-                        String message = telegramMessageFormatter.format(article);
+                        NewsSummary summary = newsSummaryService.summarize(articleText);
+
+                        String message = telegramMessageFormatter.format(article, summary);
                         telegramService.sendMessage(message);
                         publishedCount++;
                     }

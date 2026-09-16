@@ -24,10 +24,11 @@ public class NewsImportServiceTest {
     private final ArticleContentFetcher articleContentFetcher = mock(ArticleContentFetcher.class);
     private final ArticleTextExtractor articleTextExtractor = mock(ArticleTextExtractor.class);
     private final NewsRelevanceService newsRelevanceService = mock(NewsRelevanceService.class);
+    private final NewsSummaryService newsSummaryService = mock(NewsSummaryService.class);
 
 
     @Test
-    void shouldFetchAndExtractContentForNewArticle(){
+    void shouldFetchAndExtractContentForNewArticle() {
         NewsImportService service = new NewsImportService(
                 rssFeedReader,
                 newsMapper,
@@ -38,15 +39,22 @@ public class NewsImportServiceTest {
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
-                newsRelevanceService
+                newsRelevanceService,
+                newsSummaryService
         );
 
-        ReflectionTestUtils.setField(service,"rssUrls", List.of("https://example.com/rss"));
+        ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.com/rss"));
 
         RssItem rssItem = mock(RssItem.class);
 
         NewsArticle article = new NewsArticle("Test article", "https://example.com/article", "2026-09-04");
 
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русское описание",
+                "Практический вывод"
+        );
         when(rssFeedReader.read("https://example.com/rss"))
                 .thenReturn(List.of(rssItem));
 
@@ -71,7 +79,11 @@ public class NewsImportServiceTest {
                 NewsCategory.OTHER,
                 "Test reason"
         ));
-        when(telegramMessageFormatter.format(article))
+
+        when(newsSummaryService.summarize("Article content")).thenReturn(summary);
+
+
+        when(telegramMessageFormatter.format(article, summary))
                 .thenReturn("Telegram message");
 
         service.importNews();
@@ -84,14 +96,15 @@ public class NewsImportServiceTest {
 
         verify(newsRelevanceService).evaluate("Article content");
 
-        verify(telegramMessageFormatter).format(article);
+        verify(newsSummaryService).summarize("Article content");
+        verify(telegramMessageFormatter).format(article, summary);
 
         verify(telegramService).sendMessage("Telegram message");
 
     }
 
     @Test
-    void shouldNotPublishIrrelevantArticleToTelegram(){
+    void shouldNotPublishIrrelevantArticleToTelegram() {
         NewsImportService service = new NewsImportService(
                 rssFeedReader,
                 newsMapper,
@@ -102,7 +115,8 @@ public class NewsImportServiceTest {
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
-                newsRelevanceService
+                newsRelevanceService,
+                newsSummaryService
         );
 
         ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.rss"));
@@ -137,18 +151,19 @@ public class NewsImportServiceTest {
     }
 
     @Test
-    void shouldContinueProcessingWhenArticleFails(){
+    void shouldContinueProcessingWhenArticleFails() {
         NewsImportService service = new NewsImportService(
-        rssFeedReader,
-        newsMapper,
-        newsDuplicateFilter,
-        newsPersistenceService,
-        newsProcessor,
-        telegramService,
-        telegramMessageFormatter,
-        articleContentFetcher,
-        articleTextExtractor,
-        newsRelevanceService
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService
         );
         ReflectionTestUtils.setField(
                 service,
@@ -169,6 +184,12 @@ public class NewsImportServiceTest {
                 "Second article",
                 "https://example.com/second",
                 "2026-09-09"
+        );
+
+        NewsSummary secondSummary = new NewsSummary(
+                "Second Russian title",
+                "Second Russian summary",
+                "Second key point"
         );
 
         when(rssFeedReader.read("https://example.com/rss")).thenReturn(List.of(firstRssItem, secondRssItem));
@@ -192,7 +213,9 @@ public class NewsImportServiceTest {
                 "Relevant"
         ));
 
-        when(telegramMessageFormatter.format(secondArticle)).thenReturn("Second Telegram message");
+        when(telegramMessageFormatter.format(secondArticle, secondSummary)).thenReturn("Second Telegram message");
+
+        when(newsSummaryService.summarize("Second article content")).thenReturn(secondSummary);
 
         service.importNews();
 
@@ -212,7 +235,8 @@ public class NewsImportServiceTest {
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
-                newsRelevanceService
+                newsRelevanceService,
+                newsSummaryService
         );
 
         ReflectionTestUtils.setField(
@@ -280,7 +304,8 @@ public class NewsImportServiceTest {
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
-                newsRelevanceService
+                newsRelevanceService,
+                newsSummaryService
         );
 
         ReflectionTestUtils.setField(
