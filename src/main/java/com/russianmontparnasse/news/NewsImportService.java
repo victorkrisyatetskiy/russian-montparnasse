@@ -126,6 +126,8 @@ public class NewsImportService {
                     if (relevanceResult.relevant()) {
                         NewsSummary summary = newsSummaryService.summarize(articleText);
 
+                        newsPersistenceService.saveProcessedContent(article.link(), relevanceResult.category(), summary);
+
                         String message = telegramMessageFormatter.format(article, summary, relevanceResult.category());
 
                         if (telegramPublishEnabled) {
@@ -136,6 +138,8 @@ public class NewsImportService {
                             logger.info("Telegram preview:\n{}", message);
                         }
 
+                    } else {
+                        newsPersistenceService.markAsIrrelevant(article.link());
                     }
                     newsPersistenceService.updateStatus(
                             article.link(),

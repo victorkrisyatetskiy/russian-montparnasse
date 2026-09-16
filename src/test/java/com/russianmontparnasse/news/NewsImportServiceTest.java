@@ -99,6 +99,9 @@ public class NewsImportServiceTest {
         verify(newsRelevanceService).evaluate("Article content");
 
         verify(newsSummaryService).summarize("Article content");
+
+        verify(newsPersistenceService).saveProcessedContent(article.link(), NewsCategory.OTHER, summary);
+
         verify(telegramMessageFormatter).format(article, summary, NewsCategory.OTHER);
 
         verify(telegramService).sendMessage("Telegram message");
@@ -149,6 +152,8 @@ public class NewsImportServiceTest {
         service.importNews();
 
         verify(newsRelevanceService).evaluate("Article content");
+
+        verify(newsPersistenceService).markAsIrrelevant(article.link());
 
         verifyNoInteractions(telegramMessageFormatter);
         verifyNoInteractions(telegramService);
