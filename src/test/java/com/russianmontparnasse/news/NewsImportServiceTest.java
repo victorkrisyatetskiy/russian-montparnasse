@@ -40,7 +40,9 @@ public class NewsImportServiceTest {
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
-                newsSummaryService
+                newsSummaryService,
+                true
+
         );
 
         ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.com/rss"));
@@ -116,7 +118,8 @@ public class NewsImportServiceTest {
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
-                newsSummaryService
+                newsSummaryService,
+                true
         );
 
         ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.rss"));
@@ -163,7 +166,8 @@ public class NewsImportServiceTest {
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
-                newsSummaryService
+                newsSummaryService,
+                true
         );
         ReflectionTestUtils.setField(
                 service,
@@ -236,7 +240,8 @@ public class NewsImportServiceTest {
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
-                newsSummaryService
+                newsSummaryService,
+                true
         );
 
         ReflectionTestUtils.setField(
@@ -305,7 +310,8 @@ public class NewsImportServiceTest {
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
-                newsSummaryService
+                newsSummaryService,
+                true
         );
 
         ReflectionTestUtils.setField(
@@ -362,6 +368,85 @@ public class NewsImportServiceTest {
                 failedArticle.link(),
                 NewsProcessingStatus.PROCESSED
         );
+    }
+
+    @Test
+    void shouldNotSendTelegramMessageWhenPublishingIsDisabled() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService,
+                false
+        );
+
+        ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.com/rss"));
+
+        RssItem rssItem = mock(RssItem.class);
+
+        NewsArticle article = new NewsArticle("Test article", "https://example.com/article", "2026-09-04");
+
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русское описание",
+                "Практический вывод"
+        );
+        when(rssFeedReader.read("https://example.com/rss"))
+                .thenReturn(List.of(rssItem));
+
+        when(newsMapper.mapToNewsArticle(rssItem))
+                .thenReturn(article);
+
+        when(newsDuplicateFilter.removeDuplicates(List.of(article)))
+                .thenReturn(List.of(article));
+
+        when(newsPersistenceService.saveNews(List.of(article)))
+                .thenReturn(List.of(article));
+
+        when(articleContentFetcher.fetch(article.link()))
+                .thenReturn("<html><body>Article content</body></html>");
+
+        when(articleTextExtractor.extract(
+                "<html><body>Article content</body></html>"
+        )).thenReturn("Article content");
+
+        when(newsRelevanceService.evaluate("Article content")).thenReturn(new RelevanceResult(
+                true,
+                NewsCategory.OTHER,
+                "Test reason"
+        ));
+
+        when(newsSummaryService.summarize("Article content")).thenReturn(summary);
+
+
+        when(telegramMessageFormatter.format(article, summary, NewsCategory.OTHER))
+                .thenReturn("Telegram message");
+
+        service.importNews();
+
+        verify(articleContentFetcher)
+                .fetch("https://example.com/article");
+
+        verify(articleTextExtractor)
+                .extract("<html><body>Article content</body></html>");
+
+        verify(newsRelevanceService).evaluate("Article content");
+
+        verify(newsSummaryService).summarize("Article content");
+
+        verify(telegramMessageFormatter).format(article, summary, NewsCategory.OTHER);
+
+        verifyNoInteractions(telegramService);
+
+        //verify(telegramService).sendMessage("Telegram message");
     }
 
 }
