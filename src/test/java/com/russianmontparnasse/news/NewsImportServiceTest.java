@@ -103,6 +103,7 @@ public class NewsImportServiceTest {
 
         verify(telegramService).sendMessage("Telegram message");
 
+        verify(newsPersistenceService).markAsPublished(article.link());
     }
 
     @Test
@@ -446,7 +447,71 @@ public class NewsImportServiceTest {
 
         verifyNoInteractions(telegramService);
 
+        verify(newsPersistenceService, never()).markAsPublished(article.link());
+
         //verify(telegramService).sendMessage("Telegram message");
+    }
+
+    @Test
+    void shouldNotMarkArticleAsPublishedWhenTelegramFails() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService,
+                true
+        );
+
+        ReflectionTestUtils.setField(
+                service,
+                "rssUrls",
+                List.of("https://example.com/rss")
+        );
+
+        RssItem rssItem = mock(RssItem.class);
+
+        NewsArticle article = new NewsArticle(
+                "Text article",
+                "https://example.com/article",
+                "2026-09-16"
+        );
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русское саммари",
+                "Практический вывод"
+        );
+
+        when(rssFeedReader.read("https://example.com/rss")).thenReturn(List.of(rssItem));
+        when(newsMapper.mapToNewsArticle(rssItem)).thenReturn(article);
+        when(newsDuplicateFilter.removeDuplicates(List.of(article))).thenReturn(List.of(article));
+        when(newsPersistenceService.saveNews(List.of(article))).thenReturn(List.of(article));
+        when(articleContentFetcher.fetch(article.link())).thenReturn("<html><body>Article content</body></html>");
+        when(articleTextExtractor.extract("<html><body>Article content</body></html>")).thenReturn("Article content");
+        when(newsRelevanceService.evaluate("Article content")).thenReturn(new RelevanceResult(true, NewsCategory.OTHER, "Test reason"));
+        when(newsSummaryService.summarize("Article content")).thenReturn(summary);
+        when(telegramMessageFormatter.format(article, summary, NewsCategory.OTHER)).thenReturn("Telegram message");
+
+        doThrow(new RuntimeException("Telegram unavailable")).when(telegramService)
+                .sendMessage("Telegram message");
+
+        service.importNews();
+
+        verify(telegramService).sendMessage("Telegram message");
+
+        verify(newsPersistenceService, never()).markAsPublished(article.link());
+
+        verify(newsPersistenceService).updateStatus(article.link(), NewsProcessingStatus.FAILED);
+
+
+
     }
 
 }

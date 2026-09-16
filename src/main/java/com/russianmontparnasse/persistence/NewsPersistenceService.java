@@ -53,4 +53,13 @@ public class NewsPersistenceService {
                 entity.getPublishedDate()
         )).toList();
     }
+
+    public void markAsPublished(String link){
+        NewsArticleEntity entity = newsArticleRepository.findByLink(link).orElseThrow(() -> new IllegalArgumentException(
+                "Article not found" + link
+        ));
+
+        entity.setPublished(true);
+        newsArticleRepository.save(entity);
+    }
 }

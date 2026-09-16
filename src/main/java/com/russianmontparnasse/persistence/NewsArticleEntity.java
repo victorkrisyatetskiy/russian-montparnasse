@@ -21,6 +21,8 @@ public class NewsArticleEntity {
     @Enumerated(EnumType.STRING)
     private NewsProcessingStatus status;
 
+    private boolean published;
+
     public NewsArticleEntity() {
     }
 
@@ -29,6 +31,7 @@ public class NewsArticleEntity {
         this.link = link;
         this.publishedDate = publishedDate;
         this.status = NewsProcessingStatus.NEW;
+        this.published = false;
     }
 
     public NewsProcessingStatus getStatus(){
@@ -49,6 +52,14 @@ public class NewsArticleEntity {
 
     public String getTitle() {
         return title;
+    }
+
+    public boolean isPublished() {
+        return published;
+    }
+
+    public void setPublished(boolean published) {
+        this.published = published;
     }
 
     public void setTitle(String title) {

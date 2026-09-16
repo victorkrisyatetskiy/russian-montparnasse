@@ -130,6 +130,7 @@ public class NewsImportService {
 
                         if (telegramPublishEnabled) {
                             telegramService.sendMessage(message);
+                            newsPersistenceService.markAsPublished(article.link());
                             publishedCount++;
                         } else {
                             logger.info("Telegram preview:\n{}", message);
