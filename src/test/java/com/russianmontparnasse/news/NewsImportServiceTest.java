@@ -83,7 +83,7 @@ public class NewsImportServiceTest {
         when(newsSummaryService.summarize("Article content")).thenReturn(summary);
 
 
-        when(telegramMessageFormatter.format(article, summary))
+        when(telegramMessageFormatter.format(article, summary, NewsCategory.OTHER))
                 .thenReturn("Telegram message");
 
         service.importNews();
@@ -97,7 +97,7 @@ public class NewsImportServiceTest {
         verify(newsRelevanceService).evaluate("Article content");
 
         verify(newsSummaryService).summarize("Article content");
-        verify(telegramMessageFormatter).format(article, summary);
+        verify(telegramMessageFormatter).format(article, summary, NewsCategory.OTHER);
 
         verify(telegramService).sendMessage("Telegram message");
 
@@ -213,7 +213,7 @@ public class NewsImportServiceTest {
                 "Relevant"
         ));
 
-        when(telegramMessageFormatter.format(secondArticle, secondSummary)).thenReturn("Second Telegram message");
+        when(telegramMessageFormatter.format(secondArticle, secondSummary, NewsCategory.OTHER)).thenReturn("Second Telegram message");
 
         when(newsSummaryService.summarize("Second article content")).thenReturn(secondSummary);
 

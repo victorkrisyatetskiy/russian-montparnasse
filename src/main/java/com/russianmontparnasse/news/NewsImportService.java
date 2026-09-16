@@ -121,7 +121,7 @@ public class NewsImportService {
                     if (relevanceResult.relevant()) {
                         NewsSummary summary = newsSummaryService.summarize(articleText);
 
-                        String message = telegramMessageFormatter.format(article, summary);
+                        String message = telegramMessageFormatter.format(article, summary,relevanceResult.category());
                         telegramService.sendMessage(message);
                         publishedCount++;
                     }
