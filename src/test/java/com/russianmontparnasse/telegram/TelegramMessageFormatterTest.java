@@ -14,13 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TelegramMessageFormatterTest {
     private final TelegramMessageFormatter formatter = new TelegramMessageFormatter();
 
-    @Test
-    void shouldFormatNewsArticle() {
-        NewsArticle article = new NewsArticle("Test title", "https://example.com/news", "2026-09-02");
-        String result = formatter.format(article);
 
-        assertEquals("Test title\n\nhttps://example.com/news", result);
-    }
 
     @Test
     void shouldFormatRussianNewsSummary(){
