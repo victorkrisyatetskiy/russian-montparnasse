@@ -63,6 +63,20 @@ public class NewsImportService {
 
     public void importNews() {
         try {
+            if (telegramPublishEnabled){
+                List<ProcessedNewsArticle> unpublishedArticle = newsPersistenceService.processedNotPublished();
+
+                logger.info("Found {} processed unpublished articles", unpublishedArticle.size());
+
+                for (ProcessedNewsArticle processedNewsArticle : unpublishedArticle){
+                    try {
+                        publishProcessedArticle(processedNewsArticle);
+                        logger.info("Published previously processed article: {}", processedNewsArticle.article().title());
+                    } catch (Exception e){
+                        logger.error("Failed to publish previously processed article: {}", processedNewsArticle.article().title(), e);
+                    }
+                };
+            }
             logger.info("Starting news import job, reading {} RSS feeds", rssUrls.size());
 
             List<RssItem> rssItems = rssUrls.stream().flatMap(url -> rssFeedReader.read(url).stream()).toList();
@@ -173,5 +187,17 @@ public class NewsImportService {
         } catch (Exception e) {
             logger.error("An error occurred during the news import job", e);
         }
+    }
+
+    private void publishProcessedArticle(ProcessedNewsArticle processedNewsArticle){
+        String message = telegramMessageFormatter.format(
+                processedNewsArticle.article(),
+                processedNewsArticle.summary(),
+                processedNewsArticle.category()
+        );
+
+        telegramService.sendMessage(message);
+
+        newsPersistenceService.markAsPublished(processedNewsArticle.article().link());
     }
 }

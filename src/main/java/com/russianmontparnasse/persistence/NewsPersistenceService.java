@@ -1,9 +1,6 @@
 package com.russianmontparnasse.persistence;
 
-import com.russianmontparnasse.news.NewsArticle;
-import com.russianmontparnasse.news.NewsCategory;
-import com.russianmontparnasse.news.NewsProcessingStatus;
-import com.russianmontparnasse.news.NewsSummary;
+import com.russianmontparnasse.news.*;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -54,6 +51,28 @@ public class NewsPersistenceService {
                 entity.getLink(),
                 entity.getPublishedDate()
         )).toList();
+    }
+
+    public List<ProcessedNewsArticle> processedNotPublished(){
+        return newsArticleRepository.findByStatusAndRelevantTrueAndPublishedFalse(NewsProcessingStatus.PROCESSED)
+                .stream().map(entity -> {
+                    NewsArticle article = new NewsArticle(
+                            entity.getTitle(),
+                            entity.getLink(),
+                            entity.getPublishedDate()
+                    );
+                    NewsSummary summary = new NewsSummary(
+                            entity.getRussianTitle(),
+                            entity.getRussianSummary(),
+                            entity.getKeyPoint()
+                    );
+
+                    return new ProcessedNewsArticle(
+                            article,
+                            summary,
+                            entity.getCategory()
+                    );
+                }).toList();
     }
 
     public void markAsPublished(String link){

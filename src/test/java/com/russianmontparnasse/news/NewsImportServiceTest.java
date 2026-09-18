@@ -516,7 +516,178 @@ public class NewsImportServiceTest {
         verify(newsPersistenceService).updateStatus(article.link(), NewsProcessingStatus.FAILED);
 
 
+    }
 
+    @Test
+    void shouldPublishPreviouslyProcessedUnpublishedArticle() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService,
+                true
+        );
+
+        ReflectionTestUtils.setField(
+                service,
+                "rssUrls",
+                List.of("https://example.rss")
+        );
+
+        NewsArticle article = new NewsArticle(
+                "Original French title",
+                "https://example.com/article",
+                "2026-09-18"
+        );
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русское описание",
+                "Практический вывод"
+        );
+
+        ProcessedNewsArticle processedArticle = new ProcessedNewsArticle(
+                article,
+                summary,
+                NewsCategory.ADMINISTRATION
+        );
+
+        when(newsPersistenceService.processedNotPublished())
+                .thenReturn(List.of(processedArticle));
+
+        when(rssFeedReader.read("https://example.com/rss"))
+                .thenReturn(List.of());
+
+        when(newsDuplicateFilter.removeDuplicates(List.of()))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.NEW))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.saveNews(List.of()))
+                .thenReturn(List.of());
+
+        when(telegramMessageFormatter.format(
+                article,
+                summary,
+                NewsCategory.ADMINISTRATION
+        )).thenReturn("Stored Telegram message");
+
+        service.importNews();
+
+        verify(newsPersistenceService)
+                .processedNotPublished();
+
+        verify(telegramMessageFormatter).format(
+                article,
+                summary,
+                NewsCategory.ADMINISTRATION
+        );
+
+        verify(telegramService)
+                .sendMessage("Stored Telegram message");
+
+        verify(newsPersistenceService)
+                .markAsPublished(article.link());
+
+        verifyNoInteractions(
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService
+        );
+
+    }
+
+    @Test
+    void shouldNotMarkPreviouslyProcessedArticleAsPublishedWhenTelegramFails() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService,
+                true
+        );
+
+        ReflectionTestUtils.setField(
+                service,
+                "rssUrls",
+                List.of("https://example.com/rss")
+        );
+
+        NewsArticle article = new NewsArticle(
+                "Original French title",
+                "https://example.com/processed",
+                "2026-09-18"
+        );
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русское описание",
+                "Практический вывод"
+        );
+
+        ProcessedNewsArticle processedArticle = new ProcessedNewsArticle(
+                article,
+                summary,
+                NewsCategory.ADMINISTRATION
+        );
+
+        when(newsPersistenceService.processedNotPublished())
+                .thenReturn(List.of(processedArticle));
+
+        when(telegramMessageFormatter.format(
+                article,
+                summary,
+                NewsCategory.ADMINISTRATION
+        )).thenReturn("Stored Telegram message");
+
+        doThrow(new RuntimeException("Telegram unavailable"))
+                .when(telegramService)
+                .sendMessage("Stored Telegram message");
+
+        when(rssFeedReader.read("https://example.com/rss"))
+                .thenReturn(List.of());
+
+        when(newsDuplicateFilter.removeDuplicates(List.of()))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.findByStatus(NewsProcessingStatus.NEW))
+                .thenReturn(List.of());
+
+        when(newsPersistenceService.saveNews(List.of()))
+                .thenReturn(List.of());
+
+        service.importNews();
+
+        verify(telegramService)
+                .sendMessage("Stored Telegram message");
+
+        verify(newsPersistenceService, never())
+                .markAsPublished(article.link());
+
+        verify(rssFeedReader)
+                .read("https://example.com/rss");
     }
 
 }
