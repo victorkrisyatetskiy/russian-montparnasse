@@ -1,11 +1,15 @@
 package com.russianmontparnasse.news;
 
 
+import com.russianmontparnasse.rss.RssFeedReader;
+import com.russianmontparnasse.rss.RssItem;
 import com.russianmontparnasse.telegram.TelegramMessageFormatter;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
 
 @SpringBootTest(properties = {
         "news.import.runner.enabled=false",
@@ -25,6 +29,9 @@ public class NewsPreviewIntegrationTest {
 
     @Autowired
     private TelegramMessageFormatter telegramMessageFormatter;
+
+    @Autowired
+    private RssFeedReader rssFeedReader;
 
     @Test
     @Disabled("Calls real article source and OpenAI API")
@@ -69,4 +76,69 @@ public class NewsPreviewIntegrationTest {
 
 
     }
+
+    @Test
+    @Disabled("Calls real RSS feed")
+    void shouldPreviewRealNewsBatch() {
+        String rssUrl =
+                "https://www.service-public.gouv.fr/abonnements/rss/actu-actualites-particuliers.rss";
+
+        List<RssItem> rssItems = rssFeedReader.read(rssUrl)
+                .stream()
+                .limit(10)
+                .toList();
+
+        System.out.println("Loaded RSS items: " + rssItems.size());
+
+        for (RssItem item : rssItems) {
+            System.out.println("\n========================================");
+            System.out.println("RSS: " + item.title());
+            System.out.println("========================================");
+
+            try {
+                String html = articleContentFetcher.fetch(item.link());
+                String articleText = articleTextExtractor.extract(html);
+
+                RelevanceResult relevance =
+                        newsRelevanceService.evaluate(articleText);
+
+                System.out.println(
+                        "Relevance: " + relevance.relevant()
+                                + ", category: " + relevance.category()
+                                + ", reason: " + relevance.reason()
+                );
+
+                if (!relevance.relevant()) {
+                    System.out.println("SKIPPED AS IRRELEVANT");
+                    continue;
+                }
+
+                NewsSummary summary =
+                        newsSummaryService.summarize(articleText);
+
+                NewsArticle article = new NewsArticle(
+                        item.title(),
+                        item.link(),
+                        item.publishedDate()
+                );
+
+                String message = telegramMessageFormatter.format(
+                        article,
+                        summary,
+                        relevance.category()
+                );
+
+                System.out.println("\nTELEGRAM PREVIEW:");
+                System.out.println(message);
+
+            } catch (Exception e) {
+                System.out.println(
+                        "FAILED TO PROCESS: " + e.getMessage()
+                );
+            }
+        }
+    }
 }
+
+
+

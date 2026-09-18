@@ -22,7 +22,7 @@ public class NewsArticleEntity {
     @Enumerated(EnumType.STRING)
     private NewsProcessingStatus status;
 
-    private boolean published;
+    private Boolean published;
 
     private Boolean relevant;
 
@@ -109,7 +109,7 @@ public class NewsArticleEntity {
     }
 
     public boolean isPublished() {
-        return published;
+        return Boolean.TRUE.equals(published);
     }
 
     public void setPublished(boolean published) {
@@ -135,4 +135,5 @@ public class NewsArticleEntity {
     public void setPublishedDate(String publishedDate) {
         this.publishedDate = publishedDate;
     }
+
 }
