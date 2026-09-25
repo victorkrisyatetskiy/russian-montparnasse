@@ -188,7 +188,7 @@ public class NewsPreviewIntegrationTest {
     private NewsImportService newsImportService;
 
     @Test
-    й@Disabled("Publishes a real article to Telegram")
+    @Disabled("Publishes a real article to Telegram")
     void shouldPublishOneProcessedArticleToTelegram() {
         newsImportService.publishProcessedArticleById(285L);
     }
