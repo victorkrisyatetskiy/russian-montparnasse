@@ -21,6 +21,6 @@ public class TelegramService {
     public void sendMessage(String text){
         String url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
 
-        restClient.post().uri(url).body(new TelegramMessageRequest(channelId, text)).retrieve().toBodilessEntity();
+        restClient.post().uri(url).body(new TelegramMessageRequest(channelId, text, "HTML")).retrieve().toBodilessEntity();
     }
 }

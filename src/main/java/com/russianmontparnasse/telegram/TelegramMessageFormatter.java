@@ -9,10 +9,12 @@ import org.springframework.stereotype.Component;
 public class TelegramMessageFormatter {
 
 
-
     public String format(NewsArticle article, NewsSummary summary, NewsCategory category) {
-        return summary.title() + "\n\n" + summary.summary() + "\n\n" + summary.keyPoint()
-                + "\n\n" + categoryHashtag(category) + "\n\n" + "Источник: " + article.link();
+        return "<b>" + escapeHtml(summary.title()) + "</b>"
+                + "\n\n<b>Главное:</b> " + escapeHtml(summary.keyPoint())
+                + "\n\n<b>Подробности:</b>\n" + escapeHtml(summary.summary())
+                + "\n\n" + categoryHashtag(category)
+                + "\n\nИсточник: " + escapeHtml(article.link());
     }
 
     private String categoryHashtag(NewsCategory category) {
@@ -32,5 +34,11 @@ public class TelegramMessageFormatter {
             case SECURITY -> "#безопасность";
             case OTHER -> "#другое";
         };
+    }
+
+    private String escapeHtml(String text){
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 }

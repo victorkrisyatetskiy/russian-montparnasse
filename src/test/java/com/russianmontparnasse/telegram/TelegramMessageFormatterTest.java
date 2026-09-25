@@ -5,7 +5,6 @@ import com.russianmontparnasse.news.NewsCategory;
 import com.russianmontparnasse.news.NewsSummary;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,9 +14,8 @@ public class TelegramMessageFormatterTest {
     private final TelegramMessageFormatter formatter = new TelegramMessageFormatter();
 
 
-
     @Test
-    void shouldFormatRussianNewsSummary(){
+    void shouldFormatRussianNewsSummary() {
         NewsArticle article = new NewsArticle(
                 "French title",
                 "https://example.com/article",
@@ -33,15 +31,16 @@ public class TelegramMessageFormatterTest {
         String result = formatter.format(article, summary, NewsCategory.TAXES);
 
         assertEquals("""
-            Крайний срок подачи декларации — 20 мая 2026 года
-
-            Декларацию необходимо подать до 20 мая 2026 года.
-
-            Проверьте срок для своего департамента.
-            
-            #налоги
-
-            Источник: https://example.com/article""", result);
+                <b>Крайний срок подачи декларации — 20 мая 2026 года</b>
+                
+                <b>Главное:</b> Проверьте срок для своего департамента.
+                
+                <b>Подробности:</b>
+                Декларацию необходимо подать до 20 мая 2026 года.
+                
+                #налоги
+                
+                Источник: https://example.com/article""", result);
     }
 
     @ParameterizedTest
@@ -61,8 +60,7 @@ public class TelegramMessageFormatterTest {
             "SECURITY, #безопасность",
             "OTHER, #другое"
     })
-
-    void shouldAddHashTegForCategory(NewsCategory category, String expectedHashTag){
+    void shouldAddHashTegForCategory(NewsCategory category, String expectedHashTag) {
         NewsArticle article = new NewsArticle(
                 "French title",
                 "https://example.com/article",
@@ -78,4 +76,28 @@ public class TelegramMessageFormatterTest {
         String result = formatter.format(article, summary, category);
         assertTrue(result.contains(expectedHashTag));
     }
+
+    @Test
+    void shouldEscapeHtmlGenerateContent() {
+        NewsArticle article = new NewsArticle(
+                "French title",
+                "https://example.com/article?a=1&b=2",
+                "2029-09-75"
+        );
+
+        NewsSummary summary = new NewsSummary(
+                "Доход < 10 000 € & новые правила",
+                "Для дохода > 5 000 € действуют новые условия.",
+                "Проверьте A & B."
+        );
+
+        String result = formatter.format(article, summary, NewsCategory.TAXES);
+
+        assertTrue(result.contains("<b>Доход &lt; 10 000 € &amp; новые правила</b>"));
+        assertTrue(result.contains("Для дохода &gt; 5 000 € действуют новые условия."));
+        assertTrue(result.contains("Проверьте A &amp; B."));
+        assertTrue(result.contains("https://example.com/article?a=1&amp;b=2"));
+    }
+
+    ;
 }
