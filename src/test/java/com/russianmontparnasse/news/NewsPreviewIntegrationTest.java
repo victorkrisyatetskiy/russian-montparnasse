@@ -184,7 +184,14 @@ public class NewsPreviewIntegrationTest {
             }
         }
     }
+    @Autowired
+    private NewsImportService newsImportService;
 
+    @Test
+    @Disabled("Publishes a real article to Telegram")
+    void shouldPublishOneProcessedArticleToTelegram() {
+        newsImportService.publishProcessedArticleById(284L);
+    }
 
 }
 
