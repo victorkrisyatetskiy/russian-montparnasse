@@ -1,5 +1,6 @@
 package com.russianmontparnasse.news;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,6 +15,7 @@ public class NewsRelevanceServiceIntegrationTest {
     private NewsRelevanceService newsRelevanceService;
 
     @Test
+    @Disabled("Calls real OpenAI API")
     void shouldClassifyRealArticle() {
         String articleText = """
                   Le musée organise une nouvelle exposition consacrée
