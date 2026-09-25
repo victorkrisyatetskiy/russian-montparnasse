@@ -10,6 +10,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 public class NewsImportServiceTest {
@@ -688,6 +689,128 @@ public class NewsImportServiceTest {
 
         verify(rssFeedReader)
                 .read("https://example.com/rss");
+    }
+
+    @Test
+    void shouldPublishProcessedArticleById() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService,
+                false
+        );
+
+        NewsArticle article = new NewsArticle(
+                "Original French title",
+                "https://example.com/article",
+                "2026-09-23"
+        );
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русский текст новости",
+                "Практический вывод"
+        );
+
+        ProcessedNewsArticle processedArticle = new ProcessedNewsArticle(
+                article,
+                summary,
+                NewsCategory.HEALTHCARE
+        );
+
+        when(newsPersistenceService.findProcessedNotPublishedById(284L))
+                .thenReturn(processedArticle);
+
+        when(telegramMessageFormatter.format(
+                article,
+                summary,
+                NewsCategory.HEALTHCARE
+        )).thenReturn("Telegram message");
+
+        service.publishProcessedArticleById(284L);
+
+        verify(newsPersistenceService)
+                .findProcessedNotPublishedById(284L);
+
+        verify(telegramMessageFormatter).format(
+                article,
+                summary,
+                NewsCategory.HEALTHCARE
+        );
+
+        verify(telegramService)
+                .sendMessage("Telegram message");
+
+        verify(newsPersistenceService)
+                .markAsPublished("https://example.com/article");
+    }
+
+    @Test
+    void shouldNotMarkManuallyPublishedArticleAsPublishedWhenTelegramFails() {
+        NewsImportService service = new NewsImportService(
+                rssFeedReader,
+                newsMapper,
+                newsDuplicateFilter,
+                newsPersistenceService,
+                newsProcessor,
+                telegramService,
+                telegramMessageFormatter,
+                articleContentFetcher,
+                articleTextExtractor,
+                newsRelevanceService,
+                newsSummaryService,
+                false
+        );
+
+        NewsArticle article = new NewsArticle(
+                "Original French title",
+                "https://example.com/article",
+                "2026-09-23"
+        );
+
+        NewsSummary summary = new NewsSummary(
+                "Русский заголовок",
+                "Русский текст новости",
+                "Практический вывод"
+        );
+
+        ProcessedNewsArticle processedArticle = new ProcessedNewsArticle(
+                article,
+                summary,
+                NewsCategory.HEALTHCARE
+        );
+
+        when(newsPersistenceService.findProcessedNotPublishedById(284L))
+                .thenReturn(processedArticle);
+
+        when(telegramMessageFormatter.format(
+                article,
+                summary,
+                NewsCategory.HEALTHCARE
+        )).thenReturn("Telegram message");
+
+        doThrow(new RuntimeException("Telegram unavailable"))
+                .when(telegramService)
+                .sendMessage("Telegram message");
+
+        assertThrows(
+                RuntimeException.class,
+                () -> service.publishProcessedArticleById(284L)
+        );
+
+        verify(telegramService)
+                .sendMessage("Telegram message");
+
+        verify(newsPersistenceService, never())
+                .markAsPublished(article.link());
     }
 
 }

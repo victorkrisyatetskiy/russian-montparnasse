@@ -1,7 +1,9 @@
 package com.russianmontparnasse.persistence;
 
 import com.russianmontparnasse.news.NewsArticle;
+import com.russianmontparnasse.news.NewsCategory;
 import com.russianmontparnasse.news.NewsProcessingStatus;
+import com.russianmontparnasse.news.ProcessedNewsArticle;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -9,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class NewsPersistenceServiceTest {
@@ -59,7 +62,7 @@ class NewsPersistenceServiceTest {
     }
 
     @Test
-    void shouldUpdateArticleStatus(){
+    void shouldUpdateArticleStatus() {
         NewsArticleEntity entity = new NewsArticleEntity(
                 "Test article",
                 "https://example.com/article",
@@ -94,5 +97,65 @@ class NewsPersistenceServiceTest {
         verify(newsArticleRepository).findByStatus(NewsProcessingStatus.FAILED);
     }
 
+    @Test
+    void shouldFindProcessedNotPublishedArticleById() {
+        NewsArticleEntity entity = new NewsArticleEntity(
+                "French title",
+                "https://example.com/article",
+                "2026-09-23"
+        );
+
+        entity.setStatus(NewsProcessingStatus.PROCESSED);
+        entity.setRelevant(true);
+        entity.setPublished(false);
+        entity.setCategory(NewsCategory.HEALTHCARE);
+        entity.setRussianTitle("Русский заголовок");
+        entity.setRussianSummary("Русский текст новости");
+        entity.setKeyPoint("Главное для читателя");
+
+        when(newsArticleRepository.findById(284L)).thenReturn(Optional.of(entity));
+
+        ProcessedNewsArticle result = newsPersistenceService.findProcessedNotPublishedById(284L);
+
+        assertEquals("French title", result.article().title());
+        assertEquals("https://example.com/article", result.article().link());
+        assertEquals("2026-09-23", result.article().publishedDate());
+        assertEquals("Русский заголовок", result.summary().title());
+        assertEquals("Русский текст новости", result.summary().summary());
+        assertEquals("Главное для читателя", result.summary().keyPoint());
+
+        assertEquals(
+                NewsCategory.HEALTHCARE,
+                result.category()
+        );
+
+        verify(newsArticleRepository).findById(284L);
+    }
+
+    @Test
+    void shouldRejectAlreadyPublishedArticle() {
+        NewsArticleEntity entity = new NewsArticleEntity(
+                "French title",
+                "https://example.com/article",
+                "2026-09-23"
+        );
+
+        entity.setStatus(NewsProcessingStatus.PROCESSED);
+        entity.setRelevant(true);
+        entity.setPublished(true);
+
+        when(newsArticleRepository.findById(284L))
+                .thenReturn(Optional.of(entity));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> newsPersistenceService.findProcessedNotPublishedById(284L)
+        );
+
+        assertEquals(
+                "Article is already published: 284",
+                exception.getMessage()
+        );
+    }
 
 }

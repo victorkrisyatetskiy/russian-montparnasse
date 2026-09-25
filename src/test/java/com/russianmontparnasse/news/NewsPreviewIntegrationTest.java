@@ -85,7 +85,7 @@ public class NewsPreviewIntegrationTest {
 
         List<RssItem> rssItems = rssFeedReader.read(rssUrl)
                 .stream()
-                .limit(10)
+                .limit(30)
                 .toList();
 
         System.out.println("Loaded RSS items: " + rssItems.size());
@@ -137,6 +137,67 @@ public class NewsPreviewIntegrationTest {
                 );
             }
         }
+    }
+
+    @Test
+   @Disabled("Calls real RSS feeds, article sources and OpenAI API")
+    void shouldEvaluateRelevanceForRealNewsBatch() {
+        List<String> rssUrls = List.of(
+                "https://www.service-public.gouv.fr/abonnements/rss/actu-actualites-particuliers.rss",
+                "https://www.service-public.fr/abonnements/rss/actu-actu-pro.rss"
+        );
+
+        for (String rssUrl : rssUrls) {
+            System.out.println("\n========================================");
+            System.out.println("RSS FEED: " + rssUrl);
+            System.out.println("========================================");
+
+            List<RssItem> rssItems = rssFeedReader.read(rssUrl)
+                    .stream()
+                    .limit(15)
+                    .toList();
+
+            System.out.println("Loaded RSS items: " + rssItems.size());
+
+            for (RssItem item : rssItems) {
+                System.out.println("\n----------------------------------------");
+                System.out.println("RSS: " + item.title());
+
+                try {
+                    String html = articleContentFetcher.fetch(item.link());
+                    String articleText = articleTextExtractor.extract(html);
+
+                    RelevanceResult relevance =
+                            newsRelevanceService.evaluate(articleText);
+
+                    System.out.println(
+                            "Relevance: " + relevance.relevant()
+                                    + ", category: " + relevance.category()
+                                    + ", reason: " + relevance.reason()
+                    );
+
+                } catch (Exception e) {
+                    System.out.println(
+                            "FAILED TO PROCESS: " + e.getMessage()
+                    );
+                }
+            }
+        }
+    }
+
+    @Test
+    @Disabled("Calls real article source")
+    void shouldExtractBronchiolitisArticleText() {
+        String article =
+                "https://www.service-public.gouv.fr/particuliers/actualites/A17692?xtor=RSS-111";
+
+        String html = articleContentFetcher.fetch(article);
+
+        String articleText = articleTextExtractor.extract(html);
+
+        System.out.println("\n=== BRONCHIOLITIS ARTICLE TEXT ===");
+        System.out.println(articleText);
+        System.out.println("=== END ARTICLE TEXT ===\n");
     }
 }
 

@@ -200,4 +200,11 @@ public class NewsImportService {
 
         newsPersistenceService.markAsPublished(processedNewsArticle.article().link());
     }
+
+    public void publishProcessedArticleById(Long id) {
+        ProcessedNewsArticle article =
+                newsPersistenceService.findProcessedNotPublishedById(id);
+
+        publishProcessedArticle(article);
+    }
 }

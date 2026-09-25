@@ -89,7 +89,7 @@ public class NewsPersistenceService {
 
         entity.setRelevant(true);
         entity.setCategory(category);
-        entity.setRussianSummary(summary.title());
+        entity.setRussianTitle(summary.title());
         entity.setRussianSummary(summary.summary());
         entity.setKeyPoint(summary.keyPoint());
 
@@ -106,5 +106,46 @@ public class NewsPersistenceService {
         entity.setKeyPoint(null);
 
         newsArticleRepository.save(entity);
+    }
+
+    public ProcessedNewsArticle findProcessedNotPublishedById(Long id){
+        NewsArticleEntity entity = newsArticleRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Article not found: " + id
+                ));
+        if (entity.getStatus() != NewsProcessingStatus.PROCESSED){
+            throw new IllegalStateException(
+                    "Article is not processed: " + id
+            );
+        }
+
+        if (!Boolean.TRUE.equals(entity.getRelevant())) {
+            throw new IllegalStateException(
+                    "Article not relevant: " + id
+            );
+        }
+
+        if (entity.isPublished()){
+            throw new IllegalStateException(
+                    "Article is already published: " + id
+            );
+        }
+
+        NewsArticle article = new NewsArticle(
+                entity.getTitle(),
+                entity.getLink(),
+                entity.getPublishedDate()
+        );
+
+        NewsSummary summary = new NewsSummary(
+                entity.getRussianTitle(),
+                entity.getRussianSummary(),
+                entity.getKeyPoint()
+        );
+        return new ProcessedNewsArticle(
+                article,
+                summary,
+                entity.getCategory()
+        );
     }
 }
