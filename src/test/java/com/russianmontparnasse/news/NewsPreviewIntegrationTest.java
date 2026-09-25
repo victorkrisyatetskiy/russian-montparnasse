@@ -36,7 +36,7 @@ public class NewsPreviewIntegrationTest {
     @Test
     @Disabled("Calls real article source and OpenAI API")
     void shouldGenerateTelegramPreviewForRealArticle() {
-        String article = "https://www.service-public.gouv.fr/particuliers/actualites/A18394?xtor=RSS-112";
+        String article = "https://www.service-public.gouv.fr/particuliers/actualites/A17692?xtor=RSS-111";
 
         String html = articleContentFetcher.fetch(article);
 
@@ -185,20 +185,7 @@ public class NewsPreviewIntegrationTest {
         }
     }
 
-    @Test
-    @Disabled("Calls real article source")
-    void shouldExtractBronchiolitisArticleText() {
-        String article =
-                "https://www.service-public.gouv.fr/particuliers/actualites/A17692?xtor=RSS-111";
 
-        String html = articleContentFetcher.fetch(article);
-
-        String articleText = articleTextExtractor.extract(html);
-
-        System.out.println("\n=== BRONCHIOLITIS ARTICLE TEXT ===");
-        System.out.println(articleText);
-        System.out.println("=== END ARTICLE TEXT ===\n");
-    }
 }
 
 

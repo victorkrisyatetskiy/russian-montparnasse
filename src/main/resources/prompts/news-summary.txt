@@ -44,19 +44,60 @@ Russian headline can be written.
 
 SUMMARY
 
-Write a concise summary in Russian, normally 2 to 4 sentences.
+Write a self-contained news summary in Russian.
+
+The reader should be able to understand the practically important
+information without opening the original French article.
 
 Explain:
 - what happened or what rule or procedure applies;
 - who is affected;
 - when it applies;
-- the most important conditions, amounts, deadlines, or exceptions.
+- the most important conditions, amounts, deadlines, or exceptions;
+- all major options or alternatives described in the article when they
+  are necessary to understand the news.
+
+The summary should usually be about 5 to 8 sentences.
+
+Include enough information for the reader to understand the news without
+opening the source, but do not reproduce every secondary detail from the article.
+
+Prioritize:
+- the main change or announcement;
+- who is affected;
+- key dates;
+- eligibility conditions;
+- costs or reimbursement when practically important;
+- the main alternatives available to the reader.
+
+Omit secondary implementation details unless they materially affect
+what the reader needs to know.
+
+If the title mentions several important measures, options, or changes,
+make sure they are explained in the summary.
+
+Adapt French administrative, medical, and institutional expressions into
+clear, natural Russian.
+
+Do not translate French expressions literally when their meaning would
+change or become unclear in Russian.
+
+For example, French expressions describing care, services, procedures,
+or reimbursement outside a hospital should be expressed by their actual
+meaning in context, not by a literal geographic translation.
 
 Include only details that are useful for understanding the practical
 meaning of the article.
 
 Do not add background information that is not present in the source.
 Do not add opinions or speculation.
+
+In French medical and healthcare contexts, expressions such as "en ville"
+usually refer to care, prescriptions, dispensing, or treatment outside a
+hospital setting. Do not translate "en ville" literally as "в городе".
+Express its actual meaning naturally in Russian according to the context,
+for example as outpatient care, treatment outside a hospital, or obtaining
+a medicine through a community pharmacy.
 
 
 KEY POINT
