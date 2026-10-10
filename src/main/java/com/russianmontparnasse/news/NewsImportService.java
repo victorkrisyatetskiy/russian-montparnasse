@@ -4,7 +4,6 @@ import com.russianmontparnasse.persistence.NewsPersistenceService;
 import com.russianmontparnasse.rss.RssFeedReader;
 import com.russianmontparnasse.rss.RssItem;
 import com.russianmontparnasse.telegram.TelegramMessageFormatter;
-import com.russianmontparnasse.telegram.TelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +15,6 @@ import java.util.Map;
 
 @Service
 public class NewsImportService {
-    private final TelegramService telegramService;
     private final TelegramMessageFormatter telegramMessageFormatter;
 
     private static final Logger logger = LoggerFactory.getLogger(NewsImportService.class);
@@ -33,7 +31,8 @@ public class NewsImportService {
     private final NewsRelevanceService newsRelevanceService;
     private final NewsSummaryService newsSummaryService;
 
-    private final boolean telegramPublishEnabled;
+
+    private final NewsPublicationService newsPublicationService;
 
     @Value("${rss.feed.urls}")
     private List<String> rssUrls;
@@ -43,40 +42,27 @@ public class NewsImportService {
             NewsMapper newsMapper,
             NewsDuplicateFilter newsDuplicateFilter,
             NewsPersistenceService newsPersistenceService,
-            NewsProcessor newsProcessor, TelegramService telegramService,
-            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher, ArticleTextExtractor articleTextExtractor, NewsRelevanceService newsRelevanceService, NewsSummaryService newsSummaryService,
-            @Value("${telegram.publish.enabled:false}")
-            boolean telegramPublishEnabled) {
+            NewsProcessor newsProcessor,
+            TelegramMessageFormatter telegramMessageFormatter, ArticleContentFetcher articleContentFetcher,
+            ArticleTextExtractor articleTextExtractor, NewsRelevanceService newsRelevanceService,
+            NewsSummaryService newsSummaryService,
+            NewsPublicationService newsPublicationService) {
         this.rssFeedReader = rssFeedReader;
         this.newsMapper = newsMapper;
         this.newsDuplicateFilter = newsDuplicateFilter;
         this.newsPersistenceService = newsPersistenceService;
         this.newsProcessor = newsProcessor;
-        this.telegramService = telegramService;
         this.telegramMessageFormatter = telegramMessageFormatter;
         this.articleContentFetcher = articleContentFetcher;
         this.articleTextExtractor = articleTextExtractor;
         this.newsRelevanceService = newsRelevanceService;
         this.newsSummaryService = newsSummaryService;
-        this.telegramPublishEnabled = telegramPublishEnabled;
+        this.newsPublicationService = newsPublicationService;
     }
 
     public void importNews() {
         try {
-            if (telegramPublishEnabled){
-                List<ProcessedNewsArticle> unpublishedArticle = newsPersistenceService.processedNotPublished();
 
-                logger.info("Found {} processed unpublished articles", unpublishedArticle.size());
-
-                for (ProcessedNewsArticle processedNewsArticle : unpublishedArticle){
-                    try {
-                        publishProcessedArticle(processedNewsArticle);
-                        logger.info("Published previously processed article: {}", processedNewsArticle.article().title());
-                    } catch (Exception e){
-                        logger.error("Failed to publish previously processed article: {}", processedNewsArticle.article().title(), e);
-                    }
-                };
-            }
             logger.info("Starting news import job, reading {} RSS feeds", rssUrls.size());
 
             List<RssItem> rssItems = rssUrls.stream().flatMap(url -> rssFeedReader.read(url).stream()).toList();
@@ -120,8 +106,6 @@ public class NewsImportService {
             );
 
 
-            int publishedCount = 0;
-
             for (NewsArticle article : articlesToProcess.values()) {
                 try {
                     String html = articleContentFetcher.fetch(article.link());
@@ -144,13 +128,7 @@ public class NewsImportService {
 
                         String message = telegramMessageFormatter.format(article, summary, relevanceResult.category());
 
-                        if (telegramPublishEnabled) {
-                            telegramService.sendMessage(message);
-                            newsPersistenceService.markAsPublished(article.link());
-                            publishedCount++;
-                        } else {
-                            logger.info("Telegram preview:\n{}", message);
-                        }
+                        logger.info("Telegram preview:\n{}", message);
 
                     } else {
                         newsPersistenceService.markAsIrrelevant(article.link());
@@ -178,7 +156,6 @@ public class NewsImportService {
 
 
             logger.info("Saved {} news articles to persistence", savedArticles.size());
-            logger.info("Published {} new articles to Telegram", publishedCount);
 
             newsProcessor.printNews(uniqueArticles);
             logger.info("Processed and printed {} news articles", uniqueArticles.size());
@@ -189,22 +166,21 @@ public class NewsImportService {
         }
     }
 
-    private void publishProcessedArticle(ProcessedNewsArticle processedNewsArticle){
-        String message = telegramMessageFormatter.format(
-                processedNewsArticle.article(),
-                processedNewsArticle.summary(),
-                processedNewsArticle.category()
-        );
-
-        telegramService.sendMessage(message);
-
-        newsPersistenceService.markAsPublished(processedNewsArticle.article().link());
-    }
+//    private void publishProcessedArticle(ProcessedNewsArticle processedNewsArticle){
+//        String message = telegramMessageFormatter.format(
+//                processedNewsArticle.article(),
+//                processedNewsArticle.summary(),
+//                processedNewsArticle.category()
+//        );
+//
+//        telegramService.sendMessage(message);
+//
+//        newsPersistenceService.markAsPublished(processedNewsArticle.article().link());
+//    }
 
     public void publishProcessedArticleById(Long id) {
-        ProcessedNewsArticle article =
-                newsPersistenceService.findProcessedNotPublishedById(id);
+        ProcessedNewsArticle article = newsPersistenceService.findProcessedNotPublishedById(id);
 
-        publishProcessedArticle(article);
+        newsPublicationService.publish(article);
     }
 }

@@ -26,6 +26,7 @@ public class NewsImportServiceTest {
     private final ArticleTextExtractor articleTextExtractor = mock(ArticleTextExtractor.class);
     private final NewsRelevanceService newsRelevanceService = mock(NewsRelevanceService.class);
     private final NewsSummaryService newsSummaryService = mock(NewsSummaryService.class);
+    private final NewsPublicationService newsPublicationService = mock(NewsPublicationService.class);
 
 
     @Test
@@ -36,13 +37,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                true
+                newsPublicationService
 
         );
 
@@ -105,9 +105,15 @@ public class NewsImportServiceTest {
 
         verify(telegramMessageFormatter).format(article, summary, NewsCategory.OTHER);
 
-        verify(telegramService).sendMessage("Telegram message");
+        verify(newsPersistenceService)
+                .saveProcessedContent(
+                        eq(article.link()),
+                        any(NewsCategory.class),
+                        any(NewsSummary.class)
+                );
 
-        verify(newsPersistenceService).markAsPublished(article.link());
+        verifyNoInteractions(telegramService);
+        verify(newsPersistenceService, never()).markAsPublished(article.link());
     }
 
     @Test
@@ -118,13 +124,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                true
+                newsPublicationService
         );
 
         ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.rss"));
@@ -168,13 +173,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                true
+                newsPublicationService
         );
         ReflectionTestUtils.setField(
                 service,
@@ -231,7 +235,7 @@ public class NewsImportServiceTest {
         service.importNews();
 
         verify(newsRelevanceService).evaluate("Second article content");
-        verify(telegramService).sendMessage("Second Telegram message");
+        verify(newsPersistenceService, never()).markAsPublished(anyString());
     }
 
     @Test
@@ -242,13 +246,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                true
+                newsPublicationService
         );
 
         ReflectionTestUtils.setField(
@@ -312,13 +315,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                true
+                newsPublicationService
         );
 
         ReflectionTestUtils.setField(
@@ -385,13 +387,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                false
+                newsPublicationService
         );
 
         ReflectionTestUtils.setField(service, "rssUrls", List.of("https://example.com/rss"));
@@ -458,238 +459,6 @@ public class NewsImportServiceTest {
         //verify(telegramService).sendMessage("Telegram message");
     }
 
-    @Test
-    void shouldNotMarkArticleAsPublishedWhenTelegramFails() {
-        NewsImportService service = new NewsImportService(
-                rssFeedReader,
-                newsMapper,
-                newsDuplicateFilter,
-                newsPersistenceService,
-                newsProcessor,
-                telegramService,
-                telegramMessageFormatter,
-                articleContentFetcher,
-                articleTextExtractor,
-                newsRelevanceService,
-                newsSummaryService,
-                true
-        );
-
-        ReflectionTestUtils.setField(
-                service,
-                "rssUrls",
-                List.of("https://example.com/rss")
-        );
-
-        RssItem rssItem = mock(RssItem.class);
-
-        NewsArticle article = new NewsArticle(
-                "Text article",
-                "https://example.com/article",
-                "2026-09-16"
-        );
-
-        NewsSummary summary = new NewsSummary(
-                "Русский заголовок",
-                "Русское саммари",
-                "Практический вывод"
-        );
-
-        when(rssFeedReader.read("https://example.com/rss")).thenReturn(List.of(rssItem));
-        when(newsMapper.mapToNewsArticle(rssItem)).thenReturn(article);
-        when(newsDuplicateFilter.removeDuplicates(List.of(article))).thenReturn(List.of(article));
-        when(newsPersistenceService.saveNews(List.of(article))).thenReturn(List.of(article));
-        when(articleContentFetcher.fetch(article.link())).thenReturn("<html><body>Article content</body></html>");
-        when(articleTextExtractor.extract("<html><body>Article content</body></html>")).thenReturn("Article content");
-        when(newsRelevanceService.evaluate("Article content")).thenReturn(new RelevanceResult(true, NewsCategory.OTHER, "Test reason"));
-        when(newsSummaryService.summarize("Article content")).thenReturn(summary);
-        when(telegramMessageFormatter.format(article, summary, NewsCategory.OTHER)).thenReturn("Telegram message");
-
-        doThrow(new RuntimeException("Telegram unavailable")).when(telegramService)
-                .sendMessage("Telegram message");
-
-        service.importNews();
-
-        verify(telegramService).sendMessage("Telegram message");
-
-        verify(newsPersistenceService, never()).markAsPublished(article.link());
-
-        verify(newsPersistenceService).updateStatus(article.link(), NewsProcessingStatus.FAILED);
-
-
-    }
-
-    @Test
-    void shouldPublishPreviouslyProcessedUnpublishedArticle() {
-        NewsImportService service = new NewsImportService(
-                rssFeedReader,
-                newsMapper,
-                newsDuplicateFilter,
-                newsPersistenceService,
-                newsProcessor,
-                telegramService,
-                telegramMessageFormatter,
-                articleContentFetcher,
-                articleTextExtractor,
-                newsRelevanceService,
-                newsSummaryService,
-                true
-        );
-
-        ReflectionTestUtils.setField(
-                service,
-                "rssUrls",
-                List.of("https://example.rss")
-        );
-
-        NewsArticle article = new NewsArticle(
-                "Original French title",
-                "https://example.com/article",
-                "2026-09-18"
-        );
-
-        NewsSummary summary = new NewsSummary(
-                "Русский заголовок",
-                "Русское описание",
-                "Практический вывод"
-        );
-
-        ProcessedNewsArticle processedArticle = new ProcessedNewsArticle(
-                article,
-                summary,
-                NewsCategory.ADMINISTRATION
-        );
-
-        when(newsPersistenceService.processedNotPublished())
-                .thenReturn(List.of(processedArticle));
-
-        when(rssFeedReader.read("https://example.com/rss"))
-                .thenReturn(List.of());
-
-        when(newsDuplicateFilter.removeDuplicates(List.of()))
-                .thenReturn(List.of());
-
-        when(newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED))
-                .thenReturn(List.of());
-
-        when(newsPersistenceService.findByStatus(NewsProcessingStatus.NEW))
-                .thenReturn(List.of());
-
-        when(newsPersistenceService.saveNews(List.of()))
-                .thenReturn(List.of());
-
-        when(telegramMessageFormatter.format(
-                article,
-                summary,
-                NewsCategory.ADMINISTRATION
-        )).thenReturn("Stored Telegram message");
-
-        service.importNews();
-
-        verify(newsPersistenceService)
-                .processedNotPublished();
-
-        verify(telegramMessageFormatter).format(
-                article,
-                summary,
-                NewsCategory.ADMINISTRATION
-        );
-
-        verify(telegramService)
-                .sendMessage("Stored Telegram message");
-
-        verify(newsPersistenceService)
-                .markAsPublished(article.link());
-
-        verifyNoInteractions(
-                articleContentFetcher,
-                articleTextExtractor,
-                newsRelevanceService,
-                newsSummaryService
-        );
-
-    }
-
-    @Test
-    void shouldNotMarkPreviouslyProcessedArticleAsPublishedWhenTelegramFails() {
-        NewsImportService service = new NewsImportService(
-                rssFeedReader,
-                newsMapper,
-                newsDuplicateFilter,
-                newsPersistenceService,
-                newsProcessor,
-                telegramService,
-                telegramMessageFormatter,
-                articleContentFetcher,
-                articleTextExtractor,
-                newsRelevanceService,
-                newsSummaryService,
-                true
-        );
-
-        ReflectionTestUtils.setField(
-                service,
-                "rssUrls",
-                List.of("https://example.com/rss")
-        );
-
-        NewsArticle article = new NewsArticle(
-                "Original French title",
-                "https://example.com/processed",
-                "2026-09-18"
-        );
-
-        NewsSummary summary = new NewsSummary(
-                "Русский заголовок",
-                "Русское описание",
-                "Практический вывод"
-        );
-
-        ProcessedNewsArticle processedArticle = new ProcessedNewsArticle(
-                article,
-                summary,
-                NewsCategory.ADMINISTRATION
-        );
-
-        when(newsPersistenceService.processedNotPublished())
-                .thenReturn(List.of(processedArticle));
-
-        when(telegramMessageFormatter.format(
-                article,
-                summary,
-                NewsCategory.ADMINISTRATION
-        )).thenReturn("Stored Telegram message");
-
-        doThrow(new RuntimeException("Telegram unavailable"))
-                .when(telegramService)
-                .sendMessage("Stored Telegram message");
-
-        when(rssFeedReader.read("https://example.com/rss"))
-                .thenReturn(List.of());
-
-        when(newsDuplicateFilter.removeDuplicates(List.of()))
-                .thenReturn(List.of());
-
-        when(newsPersistenceService.findByStatus(NewsProcessingStatus.FAILED))
-                .thenReturn(List.of());
-
-        when(newsPersistenceService.findByStatus(NewsProcessingStatus.NEW))
-                .thenReturn(List.of());
-
-        when(newsPersistenceService.saveNews(List.of()))
-                .thenReturn(List.of());
-
-        service.importNews();
-
-        verify(telegramService)
-                .sendMessage("Stored Telegram message");
-
-        verify(newsPersistenceService, never())
-                .markAsPublished(article.link());
-
-        verify(rssFeedReader)
-                .read("https://example.com/rss");
-    }
 
     @Test
     void shouldPublishProcessedArticleById() {
@@ -699,13 +468,12 @@ public class NewsImportServiceTest {
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                false
+                newsPublicationService
         );
 
         NewsArticle article = new NewsArticle(
@@ -729,45 +497,27 @@ public class NewsImportServiceTest {
         when(newsPersistenceService.findProcessedNotPublishedById(284L))
                 .thenReturn(processedArticle);
 
-        when(telegramMessageFormatter.format(
-                article,
-                summary,
-                NewsCategory.HEALTHCARE
-        )).thenReturn("Telegram message");
-
         service.publishProcessedArticleById(284L);
 
-        verify(newsPersistenceService)
-                .findProcessedNotPublishedById(284L);
+        verify(newsPersistenceService).findProcessedNotPublishedById(284L);
 
-        verify(telegramMessageFormatter).format(
-                article,
-                summary,
-                NewsCategory.HEALTHCARE
-        );
-
-        verify(telegramService)
-                .sendMessage("Telegram message");
-
-        verify(newsPersistenceService)
-                .markAsPublished("https://example.com/article");
+        verify(newsPublicationService).publish(processedArticle);
     }
 
     @Test
-    void shouldNotMarkManuallyPublishedArticleAsPublishedWhenTelegramFails() {
+    void shouldPropagatePublicationFailure() {
         NewsImportService service = new NewsImportService(
                 rssFeedReader,
                 newsMapper,
                 newsDuplicateFilter,
                 newsPersistenceService,
                 newsProcessor,
-                telegramService,
                 telegramMessageFormatter,
                 articleContentFetcher,
                 articleTextExtractor,
                 newsRelevanceService,
                 newsSummaryService,
-                false
+                newsPublicationService
         );
 
         NewsArticle article = new NewsArticle(
@@ -791,26 +541,14 @@ public class NewsImportServiceTest {
         when(newsPersistenceService.findProcessedNotPublishedById(284L))
                 .thenReturn(processedArticle);
 
-        when(telegramMessageFormatter.format(
-                article,
-                summary,
-                NewsCategory.HEALTHCARE
-        )).thenReturn("Telegram message");
+        doThrow(new RuntimeException("Telegram unavailable")).when(newsPublicationService)
+                .publish(processedArticle);
 
-        doThrow(new RuntimeException("Telegram unavailable"))
-                .when(telegramService)
-                .sendMessage("Telegram message");
+        assertThrows(RuntimeException.class, () -> service.publishProcessedArticleById(284L));
 
-        assertThrows(
-                RuntimeException.class,
-                () -> service.publishProcessedArticleById(284L)
-        );
+        verify(newsPersistenceService).findProcessedNotPublishedById(284L);
 
-        verify(telegramService)
-                .sendMessage("Telegram message");
-
-        verify(newsPersistenceService, never())
-                .markAsPublished(article.link());
+        verify(newsPublicationService).publish(processedArticle);
     }
 
 }
