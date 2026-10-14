@@ -11,8 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class NewsPersistenceServiceTest {
@@ -156,6 +155,49 @@ class NewsPersistenceServiceTest {
                 "Article is already published: 284",
                 exception.getMessage()
         );
+    }
+
+    @Test
+    void shouldReturnEmptyWhenNoUnpublishedArticles(){
+        when(newsArticleRepository.findFirstByStatusAndRelevantTrueAndPublishedFalseOrderByIdAsc(NewsProcessingStatus.PROCESSED))
+                .thenReturn(Optional.empty());
+
+        Optional<ProcessedNewsArticle> result = newsPersistenceService.findNextUnpublished();
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldReturnNextUnpublishedArticle() {
+        NewsArticleEntity entity = new NewsArticleEntity();
+
+        entity.setTitle("French news");
+        entity.setLink("https://example.com/article");
+        entity.setPublishedDate("2026-10-14");
+        entity.setRussianTitle("Новость на русском");
+        entity.setRussianSummary("Подробное описание новости");
+        entity.setKeyPoint("Главный вывод");
+        entity.setCategory(NewsCategory.OTHER);
+
+        when(newsArticleRepository
+                .findFirstByStatusAndRelevantTrueAndPublishedFalseOrderByIdAsc(
+                        NewsProcessingStatus.PROCESSED
+                ))
+                .thenReturn(Optional.of(entity));
+
+        Optional<ProcessedNewsArticle> result =
+                newsPersistenceService.findNextUnpublished();
+
+        assertTrue(result.isPresent());
+
+        ProcessedNewsArticle processed = result.get();
+
+        assertEquals("French news", processed.article().title());
+        assertEquals("https://example.com/article", processed.article().link());
+        assertEquals("Новость на русском", processed.summary().title());
+        assertEquals("Подробное описание новости", processed.summary().summary());
+        assertEquals("Главный вывод", processed.summary().keyPoint());
+        assertEquals(NewsCategory.OTHER, processed.category());
     }
 
 }

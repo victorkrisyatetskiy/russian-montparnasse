@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class NewsPersistenceService {
@@ -147,5 +149,28 @@ public class NewsPersistenceService {
                 summary,
                 entity.getCategory()
         );
+    }
+
+    public Optional<ProcessedNewsArticle> findNextUnpublished() {
+        return newsArticleRepository.findFirstByStatusAndRelevantTrueAndPublishedFalseOrderByIdAsc(NewsProcessingStatus.PROCESSED)
+                .map(entity -> {
+                    NewsArticle article = new NewsArticle(
+                            entity.getTitle(),
+                            entity.getLink(),
+                            entity.getPublishedDate()
+                    );
+
+                    NewsSummary summary = new NewsSummary(
+                            entity.getRussianTitle(),
+                            entity.getRussianSummary(),
+                            entity.getKeyPoint()
+                    );
+
+                    return new ProcessedNewsArticle(
+                            article,
+                            summary,
+                            entity.getCategory()
+                    );
+                });
     }
 }

@@ -5,6 +5,8 @@ import com.russianmontparnasse.telegram.TelegramMessageFormatter;
 import com.russianmontparnasse.telegram.TelegramService;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 
 @Service
 public class NewsPublicationService {
@@ -29,5 +31,17 @@ public class NewsPublicationService {
         telegramService.sendMessage(message);
 
         newsPersistenceService.markAsPublished(article.article().link());
+    }
+
+    public boolean publishNext() {
+        Optional<ProcessedNewsArticle> nextArticle =
+                newsPersistenceService.findNextUnpublished();
+
+        if (nextArticle.isEmpty()) {
+            return false;
+        }
+
+        publish(nextArticle.get());
+        return true;
     }
 }

@@ -14,4 +14,6 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticleEntity, 
     Optional<NewsArticleEntity> findByLink(String link);
 
     List<NewsArticleEntity> findByStatusAndRelevantTrueAndPublishedFalse(NewsProcessingStatus status);
+
+    Optional<NewsArticleEntity> findFirstByStatusAndRelevantTrueAndPublishedFalseOrderByIdAsc(NewsProcessingStatus status);
 }
